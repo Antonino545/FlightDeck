@@ -382,7 +382,11 @@ class CalDAVCalendarProvider(BaseCalendarProvider):
                 import zoneinfo
                 tz = zoneinfo.ZoneInfo(tzid)
             except Exception:
-                tz = None
+                try:
+                    import dateutil.tz
+                    tz = dateutil.tz.gettz(tzid)
+                except Exception:
+                    tz = None
 
         try:
             if val.endswith("Z"):

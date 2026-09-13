@@ -150,7 +150,7 @@ class DatabaseService:
                                 (k, str(v))
                             )
                 logger.info("Migrated legacy notified_stages.json into SQLite.")
-                os.rename(notified_path, notified_path + ".bak")
+                os.replace(notified_path, notified_path + ".bak")
             except Exception as e:
                 logger.warning("Failed migrating notified_stages.json: %s", e)
 
@@ -176,7 +176,7 @@ class DatabaseService:
                                 str(r.get("created_at") or r.get("timestamp") or datetime.now(timezone.utc).isoformat())
                             ))
                 logger.info("Migrated legacy banner_history.json into SQLite.")
-                os.rename(history_path, history_path + ".bak")
+                os.replace(history_path, history_path + ".bak")
             except Exception as e:
                 logger.warning("Failed migrating banner_history.json: %s", e)
 
@@ -203,7 +203,7 @@ class DatabaseService:
                                     str(v.get("updated_at") or datetime.now(timezone.utc).isoformat())
                                 ))
                 logger.info("Migrated legacy eta_cache.json into SQLite.")
-                os.rename(eta_path, eta_path + ".bak")
+                os.replace(eta_path, eta_path + ".bak")
             except Exception as e:
                 logger.warning("Failed migrating eta_cache.json: %s", e)
 

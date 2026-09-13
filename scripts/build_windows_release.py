@@ -77,6 +77,8 @@ def build():
         "--hidden-import=PyQt6.QtCore",
         "--hidden-import=PyQt6.QtGui",
         "--hidden-import=PyQt6.QtWidgets",
+        "--hidden-import=tzdata",
+        "--hidden-import=zoneinfo",
         "--exclude-module=ui.macos",
         "main.py"
     ]
