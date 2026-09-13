@@ -96,6 +96,47 @@ class UpdaterService:
             except Exception:
                 pass
 
+        # 5. Check Windows (Inno Setup Registry & PyInstaller exe directory)
+        if sys.platform == "win32":
+            # 5a. Check VERSION file next to sys.executable or in _MEIPASS / assets
+            try:
+                base_dirs = [os.path.dirname(sys.executable)]
+                if hasattr(sys, "_MEIPASS"):
+                    base_dirs.append(getattr(sys, "_MEIPASS"))
+                for b in base_dirs:
+                    if not b:
+                        continue
+                    for v_path in (
+                        os.path.join(b, "VERSION"),
+                        os.path.join(b, "assets", "VERSION"),
+                        os.path.join(b, "_internal", "VERSION"),
+                    ):
+                        if os.path.isfile(v_path):
+                            with open(v_path, "r", encoding="utf-8") as f:
+                                v = f.read().strip()
+                                if v:
+                                    return v.lstrip("vV")
+            except Exception:
+                pass
+
+            # 5b. Query Inno Setup DisplayVersion from Windows Registry
+            try:
+                import winreg
+                for root in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+                    for subkey in (
+                        r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{67A41E1C-A47E-4E65-A656-11884C0F700B}_is1",
+                        r"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{67A41E1C-A47E-4E65-A656-11884C0F700B}_is1",
+                    ):
+                        try:
+                            with winreg.OpenKey(root, subkey) as k:
+                                val, _ = winreg.QueryValueEx(k, "DisplayVersion")
+                                if val and str(val).strip():
+                                    return str(val).strip().lstrip("vV")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
+
         return __version__
 
     @current_version.setter

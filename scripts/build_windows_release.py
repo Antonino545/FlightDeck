@@ -68,12 +68,20 @@ def find_iscc() -> str:
 
 
 def resolve_version() -> str:
-    """Resolves release version from CLI args, env var, or core/domain/models.py."""
+    """Resolves release version from CLI args, env var, git tags, or core/domain/models.py."""
     if len(sys.argv) > 1 and sys.argv[1].strip():
         return sys.argv[1].strip().lstrip("v")
     env_ver = os.environ.get("RELEASE_TAG") or os.environ.get("VERSION")
     if env_ver and env_ver.strip():
         return env_ver.strip().lstrip("v")
+    try:
+        res = subprocess.run(["git", "tag", "--sort=-v:refname"], capture_output=True, text=True, timeout=2)
+        if res.returncode == 0 and res.stdout.strip():
+            for line in res.stdout.strip().splitlines():
+                if line.strip().startswith("v"):
+                    return line.strip().lstrip("v")
+    except Exception:
+        pass
     models_path = os.path.join(PROJECT_ROOT, "core", "domain", "models.py")
     if os.path.exists(models_path):
         import re
@@ -81,13 +89,39 @@ def resolve_version() -> str:
             m = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', f.read())
             if m:
                 return m.group(1).lstrip("v")
-    return "1.0.5"
+    return "1.0.54"
 
 
 def build():
     os.chdir(PROJECT_ROOT)
     version = resolve_version()
     print(f"Building FlightDeck Windows release v{version}...")
+
+    # Write root VERSION and assets/VERSION files
+    for v_target in (
+        os.path.join(PROJECT_ROOT, "VERSION"),
+        os.path.join(PROJECT_ROOT, "assets", "VERSION"),
+    ):
+        try:
+            os.makedirs(os.path.dirname(v_target), exist_ok=True)
+            with open(v_target, "w", encoding="utf-8") as f:
+                f.write(version)
+        except Exception as e:
+            print(f"Warning: could not write {v_target}: {e}")
+
+    # Stamp __version__ directly in core/domain/models.py
+    models_path = os.path.join(PROJECT_ROOT, "core", "domain", "models.py")
+    if os.path.exists(models_path):
+        try:
+            import re
+            with open(models_path, "r", encoding="utf-8") as f:
+                m_code = f.read()
+            m_code = re.sub(r'__version__\s*=\s*["\'][^"\']+["\']', f'__version__ = "{version}"', m_code)
+            with open(models_path, "w", encoding="utf-8") as f:
+                f.write(m_code)
+            print(f"Stamped version {version} into {models_path}")
+        except Exception as e:
+            print(f"Warning: could not stamp models.py: {e}")
 
     ico_path = ensure_ico()
 
@@ -117,6 +151,17 @@ def build():
     dist_dir = os.path.join(PROJECT_ROOT, "dist", "FlightDeck")
     if not os.path.isdir(dist_dir):
         raise RuntimeError(f"PyInstaller build directory not found: {dist_dir}")
+
+    # Copy VERSION file to dist root and _internal if present
+    for d_target in (
+        os.path.join(dist_dir, "VERSION"),
+        os.path.join(dist_dir, "_internal", "VERSION"),
+    ):
+        try:
+            if os.path.isdir(os.path.dirname(d_target)):
+                shutil.copyfile(os.path.join(PROJECT_ROOT, "VERSION"), d_target)
+        except Exception:
+            pass
 
     # Copy launcher helper script to dist directory
     run_bat = os.path.join(PROJECT_ROOT, "scripts", "run_windows.bat")

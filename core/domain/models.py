@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional, Dict, Any
 import uuid
 
-__version__ = "1.0.5"
+__version__ = "1.0.54"
 
 
 class PilotType(str, Enum):
