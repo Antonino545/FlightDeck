@@ -7,6 +7,15 @@ import sys
 import shutil
 import subprocess
 
+if sys.platform == "win32":
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
@@ -58,10 +67,26 @@ def find_iscc() -> str:
     return ""
 
 
+def resolve_version() -> str:
+    """Resolves release version from CLI args, env var, or core/domain/models.py."""
+    if len(sys.argv) > 1 and sys.argv[1].strip():
+        return sys.argv[1].strip().lstrip("v")
+    env_ver = os.environ.get("RELEASE_TAG") or os.environ.get("VERSION")
+    if env_ver and env_ver.strip():
+        return env_ver.strip().lstrip("v")
+    models_path = os.path.join(PROJECT_ROOT, "core", "domain", "models.py")
+    if os.path.exists(models_path):
+        import re
+        with open(models_path, "r", encoding="utf-8") as f:
+            m = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', f.read())
+            if m:
+                return m.group(1).lstrip("v")
+    return "1.0.5"
+
+
 def build():
     os.chdir(PROJECT_ROOT)
-    raw_version = sys.argv[1] if len(sys.argv) > 1 else "1.0.0"
-    version = raw_version.lstrip("v")
+    version = resolve_version()
     print(f"Building FlightDeck Windows release v{version}...")
 
     ico_path = ensure_ico()
@@ -130,7 +155,7 @@ def build():
     if not os.path.exists(setup_exe):
         raise RuntimeError(f"Expected installer executable not found at {setup_exe}")
 
-    print(f"✅ Successfully built FlightDeck Windows installer: {setup_exe}")
+    print(f"[SUCCESS] Successfully built FlightDeck Windows installer: {setup_exe}")
 
 
 if __name__ == "__main__":

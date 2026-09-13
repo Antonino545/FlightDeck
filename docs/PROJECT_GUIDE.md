@@ -247,7 +247,7 @@ python main.py
 
 ### Building Windows Standalone Release
 ```powershell
-pip install pyinstaller pillow
-python scripts/build_windows_release.py 1.0.0
+pip install -r requirements-windows.txt
+python scripts/build_windows_release.py 1.0.5
 ```
-This produces `FlightDeck-Windows.zip` containing the standalone executable and all required assets.
+This produces `dist/FlightDeck-Setup.exe` (Inno Setup installer) and the standalone `dist/FlightDeck` distribution.

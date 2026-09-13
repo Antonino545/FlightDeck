@@ -150,6 +150,8 @@ jobs:
     name: Build Windows Installer
     needs: [prepare-tag]
     runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7

@@ -2,7 +2,7 @@
 ; Builds a complete Windows installer (FlightDeck-Setup.exe)
 
 #ifndef AppVersion
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.5"
 #endif
 
 [Setup]
@@ -25,7 +25,9 @@ UninstallDisplayIcon={app}\FlightDeck.exe
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
+UsedUserAreasWarning=no
 CloseApplications=yes
 RestartApplications=no
 ArchitecturesInstallIn64BitMode=x64compatible
