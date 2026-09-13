@@ -209,6 +209,28 @@ class TestWindowsCompatibility(unittest.TestCase):
                 self.assertTrue(res)
                 mock_startfile.assert_called_with("C:\\Temp\\FlightDeck-Setup.exe")
 
+    def test_windows_current_version_detection(self):
+        """Tests that updater detects installed Windows version from registry or VERSION file."""
+        from core.services.updater_service import UpdaterService
+        service = UpdaterService()
+
+        # 1. From Windows Registry (Inno Setup)
+        class MockWinreg:
+            HKEY_CURRENT_USER = "HKCU"
+            HKEY_LOCAL_MACHINE = "HKLM"
+            @staticmethod
+            def OpenKey(*args, **kwargs):
+                return "key"
+            @staticmethod
+            def QueryValueEx(key, name):
+                if name == "DisplayVersion":
+                    return "1.0.54", 1
+                raise FileNotFoundError()
+
+        with patch("sys.platform", "win32"):
+            with patch.dict("sys.modules", {"winreg": MockWinreg}):
+                self.assertEqual(service.current_version, "1.0.54")
+
 
 if __name__ == "__main__":
     unittest.main()

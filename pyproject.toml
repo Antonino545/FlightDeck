@@ -1,6 +1,6 @@
 [project]
 name = "flightdeck"
-version = "1.0.5"
+version = "1.0.54"
 description = "Cross-platform smart meeting reminder & flight deck application for macOS and Linux"
 readme = "README.md"
 requires-python = ">=3.9"

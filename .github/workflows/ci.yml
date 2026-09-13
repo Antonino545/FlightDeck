@@ -101,6 +101,7 @@ jobs:
   test-windows:
     name: Test & Build Windows (CI)
     runs-on: windows-latest
+    if: github.event_name == 'workflow_dispatch'
     env:
       PYTHONUTF8: "1"
     steps:

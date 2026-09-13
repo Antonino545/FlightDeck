@@ -2,7 +2,7 @@
 ; Builds a complete Windows installer (FlightDeck-Setup.exe)
 
 #ifndef AppVersion
-#define AppVersion "1.0.5"
+#define AppVersion "1.0.54"
 #endif
 
 [Setup]
