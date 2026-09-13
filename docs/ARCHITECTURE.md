@@ -135,9 +135,9 @@ Cross-platform presentation layer structured by operating system:
     - `banner_hud_painter.py`: Quartz 2D drawing routines (Glass card, pills, action buttons, vibrating towing cables, speech bubble).
     - `quiet_banner_view.py`: Distraction-free compact notifications.
     - `renderers/`: Vector pilot & vehicle renderers (`duck_renderer.py`, `modular_renderer.py`) featuring 4-blade high-RPM propeller discs, pulsating wingtip strobe beacons, natural mascot eye blinking, head bobbing, and species-specific slipstream inertia.
-  - **`ui/linux/`**: Native Linux / Ubuntu UI using PyQt6 (Wayland / X11):
-  - **`theme.py`**: Native `QColor` and RGBA string converters derived directly from `ui.common.theme.CatppuccinMocha`.
-  - **`qt_tray_app.py`**: PyQt6 `QSystemTrayIcon` with custom Catppuccin context menu.
+  - **`ui/linux/`**: Native Linux / Ubuntu & Windows UI using PyQt6 (Wayland / X11 / Win32):
+  - **`theme.py`**: Native `QColor` and RGBA converters, standardized QMenu and QComboBox Catppuccin Mocha styles.
+  - **`qt_tray_app.py`**: PyQt6 `QSystemTrayIcon` status controller with crisp native mascot icon on Windows, rich tooltip status, single-click dropdowns, today & tomorrow event previews, and Catppuccin context menu.
   - **`qt_dashboard.py`**: PyQt6 Flight Deck window coordinator with capsule pill switcher and window lifecycle management.
   - **`components/`**: Reusable Qt GUI components (`flow_layout.py` for responsive multi-line pill wrapping).
   - **`dashboard_tabs/`**: Dedicated modular tab views matching macOS:

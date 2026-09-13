@@ -207,7 +207,7 @@ class UpdaterService:
             elif is_linux and name.endswith(".appimage"):
                 return asset
 
-        return assets[0] if assets else None
+        return None
 
     def download_and_install_update(self, background: bool = True, on_progress=None) -> bool:
         """Downloads the matching asset and initiates installer / replacement."""
@@ -224,7 +224,10 @@ class UpdaterService:
             asset = self.get_platform_asset(self.latest_release_info["assets"])
             if not asset or not asset.get("browser_download_url"):
                 logger.error("No compatible release asset found for current OS.")
-                event_bus.publish("UPDATE_FAILED", error="No compatible release asset found.")
+                event_bus.publish("UPDATE_FAILED", error="No compatible release asset found for current OS.")
+                if self.latest_release_info and self.latest_release_info.get("html_url"):
+                    import webbrowser
+                    webbrowser.open(self.latest_release_info["html_url"])
                 return False
 
             download_url = asset["browser_download_url"]

@@ -14,6 +14,8 @@ build/
 dist/
 FlightDeck-Windows/
 FlightDeck-Windows.zip
+FlightDeck-Setup.exe
+*.exe
 FlightDeck.spec
 assets/icon.ico
 .flatpak-builder/

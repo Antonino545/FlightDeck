@@ -43,6 +43,18 @@ pkill -f "flightdeck" 2>/dev/null; sleep 1; flightdeck &
 tail -15 ~/.flightdeck/flightdeck.log
 ```
 
+### For Windows:
+```powershell
+# 1. Run Unit Test Suite
+python -m unittest discover -s tests -v
+
+# 2. Build the Windows Setup Installer (requires Inno Setup: choco install innosetup)
+python scripts/build_windows_release.py
+
+# 3. Run and verify installer
+./dist/FlightDeck-Setup.exe
+```
+
 > ⚠️ **IMPORTANT COMMIT RULE**:
 > **DO NOT automatically commit changes.** Only commit to Git when explicitly requested by the user.
 
@@ -56,8 +68,13 @@ FlightDeck/
 ├── build_macos_app.py             # Custom build script compiling C launcher Mach-O & bundling app (macOS)
 ├── scripts/
 │   ├── build_ubuntu_deb.sh        # Debian/Ubuntu .deb package builder for Linux (Wayland/X11)
+│   ├── build_windows_release.py   # PyInstaller & Inno Setup installer builder for Windows
 │   └── install_linux_deps.sh      # Installs system dependencies for Linux
-├── assets/                        # App icons (PNG & ICNS), audio files
+├── packaging/
+│   ├── flatpak/                   # Flatpak manifests and desktop definitions
+│   └── windows/
+│       └── flightdeck.iss         # Inno Setup installer script for Windows
+├── assets/                        # App icons (PNG, ICNS & ICO), audio files
 ├── core/
 │   ├── domain/
 │   │   ├── models.py              # CalendarEvent / Meeting, EventTime, Location, MeetingLink, TravelPlan, PresenceStatus, EventPresentation

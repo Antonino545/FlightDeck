@@ -53,15 +53,21 @@ class CalDAVCalendarProvider(BaseCalendarProvider):
         today_date = now.date()
 
         for source in calendar_sources:
-            source_str = str(source).strip()
-            if not source_str or source_str in ignored:
+            if isinstance(source, dict):
+                source_str = str(source.get("url", "")).strip()
+                custom_name = str(source.get("name", "")).strip()
+            else:
+                source_str = str(source).strip()
+                custom_name = ""
+
+            if not source_str or source_str in ignored or (custom_name and custom_name in ignored):
                 continue
 
             ics_text = self._load_ics_content(source_str)
             if not ics_text:
                 continue
 
-            cal_name = self._extract_calendar_name(ics_text, source_str)
+            cal_name = custom_name or self._extract_calendar_name(ics_text, source_str)
             if cal_name in ignored:
                 continue
 
@@ -114,11 +120,16 @@ class CalDAVCalendarProvider(BaseCalendarProvider):
         cals: List[Dict[str, Any]] = []
 
         for src in sources:
-            name = src.split("/")[-1].replace(".ics", "") or src
+            if isinstance(src, dict):
+                url = str(src.get("url", "")).strip()
+                name = str(src.get("name", "")).strip() or url.split("/")[-1].replace(".ics", "") or url
+            else:
+                url = str(src).strip()
+                name = url.split("/")[-1].replace(".ics", "") or url
             cals.append({
                 "name": name,
-                "enabled": name not in ignored and src not in ignored,
-                "source": src
+                "enabled": name not in ignored and url not in ignored,
+                "source": url
             })
         return cals
 

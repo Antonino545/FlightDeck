@@ -26,11 +26,12 @@ class TestUpdaterService(unittest.TestCase):
     def test_platform_asset_resolution(self):
         mock_assets = [
             {"name": "flightdeck_1.1.0_amd64.deb", "browser_download_url": "https://example.com/quak.deb"},
-            {"name": "FlightDeck-macOS.dmg", "browser_download_url": "https://example.com/quak.dmg"}
+            {"name": "FlightDeck-macOS.dmg", "browser_download_url": "https://example.com/quak.dmg"},
+            {"name": "FlightDeck-Setup.exe", "browser_download_url": "https://example.com/flightdeck.exe"}
         ]
         asset = self.updater.get_platform_asset(mock_assets)
         self.assertIsNotNone(asset)
-        self.assertTrue(asset["name"].endswith(".dmg") or asset["name"].endswith(".deb"))
+        self.assertTrue(asset["name"].endswith(".dmg") or asset["name"].endswith(".deb") or asset["name"].endswith(".exe"))
 
     def test_mocked_check_for_updates(self):
         from unittest.mock import patch, MagicMock
