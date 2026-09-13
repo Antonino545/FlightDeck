@@ -65,7 +65,7 @@ def get_asset_path(filename: str) -> str:
 
 def get_combo_box_qss(bg_color: str = "#313244", min_width: int = 150) -> str:
     """Returns standardized Catppuccin Mocha stylesheet for QComboBox including dropdown popup and arrow."""
-    arrow_path = get_asset_path("chevron_down.svg")
+    arrow_path = get_asset_path("chevron_down.svg").replace("\\", "/")
     return f"""
         QComboBox {{
             background-color: {bg_color};
@@ -121,3 +121,58 @@ def get_combo_box_qss(bg_color: str = "#313244", min_width: int = 150) -> str:
     """
 
 
+def get_menu_qss() -> str:
+    """Returns standardized Catppuccin Mocha stylesheet for QMenu and QMenuBar."""
+    return """
+        QMenuBar {
+            background-color: #11111b;
+            color: #cdd6f4;
+            border-bottom: 1px solid #313244;
+            padding: 2px 8px;
+            font-size: 12px;
+        }
+        QMenuBar::item {
+            background: transparent;
+            padding: 4px 10px;
+            border-radius: 6px;
+            color: #cdd6f4;
+        }
+        QMenuBar::item:selected {
+            background-color: #313244;
+            color: #89b4fa;
+        }
+        QMenuBar::item:pressed {
+            background-color: #45475a;
+        }
+        QMenu {
+            background-color: #181825;
+            color: #cdd6f4;
+            border: 1px solid #45475a;
+            border-radius: 8px;
+            padding: 6px;
+        }
+        QMenu::item {
+            background-color: transparent;
+            color: #cdd6f4;
+            padding: 6px 28px 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        QMenu::item:selected {
+            background-color: #313244;
+            color: #89b4fa;
+        }
+        QMenu::item:disabled {
+            color: #585b70;
+        }
+        QMenu::separator {
+            height: 1px;
+            background-color: #313244;
+            margin: 4px 6px;
+        }
+        QMenu::indicator {
+            width: 14px;
+            height: 14px;
+            margin-left: 6px;
+        }
+    """

@@ -62,7 +62,7 @@ jobs:
       # Caches downloaded .deb packages so apt-get doesn't re-fetch them
       # from archive.ubuntu.com / security.ubuntu.com on every run.
       - name: Cache apt packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /var/cache/apt/archives
           key: apt-${{ runner.os }}-${{ hashFiles('.github/workflows/*.yml') }}
@@ -97,4 +97,45 @@ jobs:
           name: Test-FlightDeck-Ubuntu-DEB
           path: deb_dist/*.deb
           retention-days: 7
+
+  test-windows:
+    name: Test & Build Windows (CI)
+    runs-on: windows-latest
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-windows.txt ruff
+
+      - name: Run Linter & Unit Tests
+        run: |
+          ruff check .
+          python -m unittest discover -s tests -v
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress
+
+      - name: Build Windows Installer
+        run: |
+          python scripts/build_windows_release.py
+
+      - name: Upload Test Windows Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Test-FlightDeck-Windows-Installer
+          path: dist/FlightDeck-Setup.exe
+          retention-days: 7
+
 

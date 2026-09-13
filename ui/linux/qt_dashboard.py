@@ -48,6 +48,33 @@ QMainWindow, QWidget#CentralWidget {
     border: none;
 }
 
+QMenu {
+    background-color: #181825; /* Mantle */
+    color: #cdd6f4; /* Text */
+    border: 1px solid #45475a; /* Surface1 */
+    border-radius: 8px;
+    padding: 6px;
+}
+QMenu::item {
+    background-color: transparent;
+    color: #cdd6f4;
+    padding: 6px 28px 6px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+QMenu::item:selected {
+    background-color: #313244; /* Surface0 */
+    color: #89b4fa; /* Blue */
+}
+QMenu::item:disabled {
+    color: #585b70; /* Surface2 */
+}
+QMenu::separator {
+    height: 1px;
+    background-color: #313244;
+    margin: 4px 6px;
+}
+
 QFrame#HeaderBox {
     background-color: #181825; /* Mantle */
     border: 1px solid #313244; /* Surface0 */
@@ -241,7 +268,7 @@ QComboBox QAbstractItemView::item:selected {
     background-color: #45475a;
     color: #cdd6f4;
 }
-""".replace("__ARROW_SVG_PLACEHOLDER__", get_asset_path("chevron_down.svg"))
+""".replace("__ARROW_SVG_PLACEHOLDER__", get_asset_path("chevron_down.svg").replace("\\", "/"))
 
 
 class QtFlightDeckWindow(QMainWindow):

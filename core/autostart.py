@@ -256,7 +256,7 @@ def enable_autostart() -> bool:
         with open(PLIST_PATH, "w", encoding="utf-8") as f:
             f.write(plist_content.strip() + "\n")
 
-        uid = os.getuid()
+        uid = os.getuid() if hasattr(os, "getuid") else 501
         # Unload/bootout previous state if present
         subprocess.run(["launchctl", "bootout", f"gui/{uid}/{PLIST_LABEL}"], capture_output=True)
         subprocess.run(["launchctl", "unload", "-w", PLIST_PATH], capture_output=True)
@@ -302,7 +302,7 @@ def disable_autostart() -> bool:
     # 2. Remove LaunchAgent plist
     try:
         if os.path.exists(PLIST_PATH):
-            uid = os.getuid()
+            uid = os.getuid() if hasattr(os, "getuid") else 501
             subprocess.run(["launchctl", "bootout", f"gui/{uid}/{PLIST_LABEL}"], capture_output=True)
             subprocess.run(["launchctl", "unload", "-w", PLIST_PATH], capture_output=True)
             os.remove(PLIST_PATH)

@@ -310,6 +310,38 @@ class TestDashboardUI(unittest.TestCase):
             action_texts = [act.text() for act in tray_app.tray.contextMenu().actions()]
             self.assertIn("📄 View Logs & Diagnostics...", action_texts)
 
+    def test_qt_tray_menu_events_and_styling(self):
+        try:
+            from PyQt6.QtWidgets import QApplication
+            from ui.linux.qt_tray_app import FlightDeckTrayApp
+            from core.domain.models import Meeting
+            from core.services.language_service import t
+            from datetime import datetime, timedelta, timezone
+        except (ImportError, ModuleNotFoundError):
+            self.skipTest("PyQt6 not available for Qt tray app testing")
+
+        app = QApplication.instance() or QApplication(sys.argv)
+        with unittest.mock.patch("core.services.updater_service.updater_service.check_for_updates"):
+            tray_app = FlightDeckTrayApp(app)
+
+        now = datetime.now(timezone.utc)
+        m1 = Meeting(id="m1", title="First Flight", start_time=now + timedelta(hours=1), end_time=now + timedelta(hours=2))
+        m2 = Meeting(id="m2", title="Second Flight", start_time=now + timedelta(hours=3), end_time=now + timedelta(hours=4))
+        m3 = Meeting(id="m3", title="Tomorrow Flight", start_time=now + timedelta(days=1, hours=2), end_time=now + timedelta(days=1, hours=3))
+
+        with unittest.mock.patch("core.services.calendar_service.calendar_service.get_upcoming_meetings", return_value=[m1, m2, m3]):
+            tray_app.build_menu()
+            action_texts = [act.text() for act in tray_app.tray.contextMenu().actions()]
+
+            # Header and today's remaining events
+            self.assertTrue(any("First Flight" in act for act in action_texts))
+            self.assertIn(f"📅 {t('events_today_header')}", action_texts)
+            self.assertTrue(any("Second Flight" in act for act in action_texts))
+
+            # Tomorrow header and tomorrow events
+            self.assertIn(f"🗓️ {t('tomorrow_header')}", action_texts)
+            self.assertTrue(any("Tomorrow Flight" in act for act in action_texts))
+
     def test_qt_settings_system_card_debug_visibility(self):
         try:
             from PyQt6.QtWidgets import QApplication

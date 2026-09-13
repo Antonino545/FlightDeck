@@ -3,16 +3,18 @@ import sys
 import threading
 import logging
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from PyQt6.QtWidgets import QApplication, QSystemTrayIcon, QMenu
-from PyQt6.QtGui import QIcon, QAction, QPainter, QPixmap, QFont, QColor, QPalette
-from ui.linux.theme import Theme
+from PyQt6.QtGui import QIcon, QAction, QPainter, QPixmap, QFont, QColor, QPalette, QCursor
+from PyQt6.QtCore import pyqtSignal, QObject, Qt, QTimer, QRectF
+from ui.linux.theme import Theme, get_menu_qss
 
 from core.services.config_service import config, is_debug_mode
 from core.services.calendar_service import calendar_service
 from core.services.reminder_engine import reminder_engine
 from core.services.updater_service import updater_service
+from core.services.language_service import t
 from core.services.event_bus import event_bus
 from core.domain.models import format_duration
 from core.logger import open_log_file
@@ -20,8 +22,6 @@ from core.logger import open_log_file
 logger = logging.getLogger("FlightDeck.QtTrayApp")
 
 from ui.common.tray_viewmodel import TrayViewModel
-
-from PyQt6.QtCore import pyqtSignal, QObject, Qt, QTimer
 
 class SignalBridge(QObject):
     banner = pyqtSignal(dict)
@@ -77,6 +77,12 @@ class FlightDeckTrayApp:
 
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            if hasattr(self, '_menu'):
+                if self._menu.isVisible():
+                    self._menu.close()
+                else:
+                    self._menu.popup(QCursor.pos())
+        elif reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show_flight_deck(0)
 
     def build_menu(self):
@@ -87,15 +93,19 @@ class FlightDeckTrayApp:
             menu = QMenu()
             self._menu = menu
             self.tray.setContextMenu(self._menu)
+        menu.setStyleSheet(get_menu_qss())
 
         now = datetime.now().astimezone()
         meetings = calendar_service.get_upcoming_meetings()
         today_up = [m for m in meetings if m.start_time and m.start_time.astimezone().date() == now.date() and ((m.end_time and m.end_time.astimezone() > now) or m.start_time.astimezone() > now)]
         logger.debug("Building Qt tray menu: %d meetings loaded, %d remaining today.", len(meetings), len(today_up))
 
-        icon_map = {"chef": "🍕", "captain": "✈️", "owl": "🎓", "driver": "🚗", "zen_duck": "🛋️", "duck": "🦆"}
+        icon_map = {
+            "chef": "🍕", "captain": "✈️", "owl": "🎓", "driver": "🚗",
+            "zen_duck": "🛋️", "duck": "🦆", "athlete": "🏋️‍♂️", "racer": "🏎️"
+        }
 
-        deck_act = QAction("🦆 Open Flight Deck", menu)
+        deck_act = QAction(f"🦆 {t('flight_deck')}", menu)
         deck_act.triggered.connect(lambda chk=False: self.show_flight_deck(0))
         menu.addAction(deck_act)
         menu.addSeparator()
@@ -124,28 +134,86 @@ class FlightDeckTrayApp:
                 join_act.triggered.connect(lambda chk=False, u=action_url: webbrowser.open(u))
                 menu.addAction(join_act)
 
+            # Today's remaining events (events 2..6)
+            if len(today_up) > 1:
+                menu.addSeparator()
+                header_today = QAction(f"📅 {t('events_today_header')}", menu)
+                header_today.setEnabled(False)
+                menu.addAction(header_today)
+
+                for m in today_up[1:6]:
+                    ev_st = m.start_time.strftime("%H:%M") if m.start_time else "--:--"
+                    ev_type = getattr(m, "pilot_type", "duck")
+                    ev_icon = icon_map.get(ev_type, "🦆")
+                    ev_title = (getattr(m, "title", "Event") or "Event").strip()
+                    ev_short = ev_title[:24] + "…" if len(ev_title) > 24 else ev_title
+
+                    ev_tr = getattr(m, "travel_time_minutes", 0)
+                    ev_text = f"  {ev_icon} {ev_st} - {ev_short}"
+                    if ev_tr:
+                        ev_text += f" (~{format_duration(ev_tr)})"
+
+                    ev_act = QAction(ev_text, menu)
+                    ev_url = getattr(m, "action_url", None) or getattr(m, "meeting_url", None)
+                    if ev_url and ev_url != "https://calendar.apple.com":
+                        ev_act.triggered.connect(lambda chk=False, u=ev_url: webbrowser.open(u))
+                    else:
+                        ev_act.triggered.connect(lambda chk=False: self.show_flight_deck(0))
+                    menu.addAction(ev_act)
+
             menu.addSeparator()
         else:
-            none_act = QAction("✨ No remaining events today", menu)
+            none_act = QAction(f"✨ {t('no_remaining_today')}", menu)
             none_act.setEnabled(False)
             menu.addAction(none_act)
             menu.addSeparator()
 
-        sync_act = QAction("🔄 Sync Calendars", menu)
+        # Tomorrow's events
+        tomorrow_date = now.date() + timedelta(days=1)
+        tomorrow_up = [m for m in meetings if m.start_time and m.start_time.astimezone().date() == tomorrow_date]
+        if tomorrow_up:
+            header_tmrw = QAction(f"🗓️ {t('tomorrow_header')}", menu)
+            header_tmrw.setEnabled(False)
+            menu.addAction(header_tmrw)
+
+            for m in tomorrow_up[:5]:
+                ev_st = m.start_time.strftime("%H:%M") if m.start_time else "--:--"
+                ev_type = getattr(m, "pilot_type", "duck")
+                ev_icon = icon_map.get(ev_type, "🦆")
+                ev_title = (getattr(m, "title", "Event") or "Event").strip()
+                ev_short = ev_title[:24] + "…" if len(ev_title) > 24 else ev_title
+
+                ev_tr = getattr(m, "travel_time_minutes", 0)
+                ev_text = f"  {ev_icon} {ev_st} - {ev_short}"
+                if ev_tr:
+                    ev_text += f" (~{format_duration(ev_tr)})"
+
+                ev_act = QAction(ev_text, menu)
+                ev_url = getattr(m, "action_url", None) or getattr(m, "meeting_url", None)
+                if ev_url and ev_url != "https://calendar.apple.com":
+                    ev_act.triggered.connect(lambda chk=False, u=ev_url: webbrowser.open(u))
+                else:
+                    ev_act.triggered.connect(lambda chk=False: self.show_flight_deck(0))
+                    menu.addAction(ev_act)
+
+            menu.addSeparator()
+
+        sync_act = QAction(f"🔄 {t('sync_calendars')}", menu)
         sync_act.triggered.connect(lambda chk=False: threading.Thread(target=calendar_service.sync_now, daemon=True).start())
         menu.addAction(sync_act)
 
-        pref_act = QAction("⚙️ Settings & Preferences...", menu)
+        pref_act = QAction(f"⚙️ {t('preferences')}", menu)
         pref_act.triggered.connect(lambda chk=False: self.show_flight_deck(2))
         menu.addAction(pref_act)
 
         mode_menu = QMenu("📊 Status Bar Mode", menu)
+        mode_menu.setStyleSheet(get_menu_qss())
         curr_mode = config.get("menubar_status_mode", "countdown")
         modes_def = [
-            ("countdown", "⏳ Live Countdown"),
-            ("event_time", "🕐 Start Time & Title"),
-            ("time_only", "⏱️ Time & Countdown"),
-            ("icon_only", "🦆 Icon Only")
+            ("countdown", "⏳ Live Countdown (e.g. In 25m / Leave in 10m)"),
+            ("event_time", "🕐 Start Time & Title (e.g. 20:00 Dinner)"),
+            ("time_only", "⏱️ Time & Countdown (e.g. 20:00 in 25m)"),
+            ("icon_only", "🦆 Icon Only (Minimal)")
         ]
         for mode_key, mode_label in modes_def:
             m_act = QAction(mode_label, mode_menu, checkable=True)
@@ -168,13 +236,13 @@ class FlightDeckTrayApp:
             up_act.triggered.connect(lambda chk=False: updater_service.download_and_install_update())
             menu.addAction(up_act)
         else:
-            chk_act = QAction("🔍 Check for Updates...", menu)
+            chk_act = QAction(f"🔍 {t('check_updates')}", menu)
             chk_act.triggered.connect(lambda chk=False: updater_service.check_for_updates(background=True, manual=True))
             menu.addAction(chk_act)
 
         menu.addSeparator()
 
-        quit_act = QAction("Quit FlightDeck", menu)
+        quit_act = QAction(f"❌ {t('quit')}", menu)
         quit_act.triggered.connect(lambda chk=False: self.app.quit())
         menu.addAction(quit_act)
 
@@ -190,7 +258,7 @@ class FlightDeckTrayApp:
         icon_char = "🦆"
         
         # Try to find the mascot emoji
-        for emoji in ["🦆", "👨‍🍳", "🧑‍✈️", "🦉", "🏋️‍♂️", "🏎️", "🦆🌸"]:
+        for emoji in ["🦆", "👨‍🍳", "🧑‍✈️", "🦉", "🏋️‍♂️", "🏎️", "🦆🌸", "🍕", "✈️", "🎓", "🚗", "🛋️"]:
             if emoji in title_str:
                 icon_char = emoji
                 break
@@ -212,24 +280,31 @@ class FlightDeckTrayApp:
         pixmap = QPixmap(64, 64)
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         
-        font_icon = QFont("sans-serif", 24)
+        font_icon = QFont("Segoe UI Emoji", 24)
+        font_icon.setStyleHint(QFont.StyleHint.SansSerif)
         painter.setFont(font_icon)
         painter.drawText(0, -4, 64, 38, Qt.AlignmentFlag.AlignCenter, icon_char)
         
         if short_text:
-            font_text = QFont("sans-serif", 13, QFont.Weight.Bold)
+            font_text = QFont("Segoe UI", 12, QFont.Weight.Bold)
+            font_text.setStyleHint(QFont.StyleHint.SansSerif)
             painter.setFont(font_text)
             
-            painter.setPen(Theme.get_color('CRUST', 200))
-            painter.drawText(1, 33, 64, 28, Qt.AlignmentFlag.AlignCenter, short_text[:6])
+            # Subtle dark pill background for readability on any taskbar (light/dark)
+            pill_rect = QRectF(4, 35, 56, 25)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QColor(17, 17, 27, 215))
+            painter.drawRoundedRect(pill_rect, 6, 6)
             
             if "NOW" in short_text:
                 painter.setPen(Theme.RED)
             else:
                 painter.setPen(Theme.TEXT)
                 
-            painter.drawText(0, 32, 64, 28, Qt.AlignmentFlag.AlignCenter, short_text[:6])
+            painter.drawText(QRectF(4, 35, 56, 25), Qt.AlignmentFlag.AlignCenter, short_text[:6])
             
         painter.end()
         return QIcon(pixmap)
@@ -248,12 +323,14 @@ class FlightDeckTrayApp:
             logger.debug("Updating tray status: mode=%s title=%r.", status_mode, title)
 
             self.tray.setToolTip(title)
-            
-            if status_mode == "icon_only" or not primary_m:
+
+            # On Windows taskbar, 16x16/24x24 tray icons cannot fit readable text.
+            # Keep the crisp, native FlightDeck mascot icon and show details in tooltip/menu.
+            if sys.platform == "win32" or status_mode == "icon_only" or not primary_m:
                 self.tray.setIcon(self.icon)
             else:
                 self.tray.setIcon(self._generate_dynamic_icon(title))
-                
+
             self.build_menu()
         except Exception as e:
             logger.warning(f"Error in QtTray agenda update: {e}")

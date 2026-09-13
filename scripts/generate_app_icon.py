@@ -227,7 +227,7 @@ def create_app_icon_qt(output_path="assets/icon.png", size=1024, mode="dark"):
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
     img.save(output_path)
-    print(f"✅ Icon ({mode}) successfully generated: {output_path} ({size}x{size})")
+    print(f"[OK] Icon ({mode}) successfully generated: {output_path} ({size}x{size})")
 
 
 def generate_all_app_icons(base_dir="assets", size=1024):
