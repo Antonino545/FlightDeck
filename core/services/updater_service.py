@@ -51,9 +51,11 @@ class UpdaterService:
                 import AppKit
                 bundle = AppKit.NSBundle.mainBundle()
                 if bundle:
-                    b_ver = bundle.objectForInfoDictionaryKey_("CFBundleShortVersionString")
-                    if b_ver and str(b_ver).strip():
-                        return str(b_ver).strip()
+                    b_path = bundle.bundlePath() if hasattr(bundle, "bundlePath") else None
+                    if b_path and (b_path.endswith("FlightDeck.app") or b_path.endswith("QuakMeeting.app")):
+                        b_ver = bundle.objectForInfoDictionaryKey_("CFBundleShortVersionString")
+                        if b_ver and str(b_ver).strip():
+                            return str(b_ver).strip()
             except Exception:
                 pass
 
@@ -365,7 +367,7 @@ class UpdaterService:
                 import AppKit
                 bundle = AppKit.NSBundle.mainBundle()
                 b_path = bundle.bundlePath() if bundle else None
-                if b_path and b_path.endswith(".app") and os.path.exists(b_path):
+                if b_path and (b_path.endswith("FlightDeck.app") or b_path.endswith("QuakMeeting.app")) and os.path.exists(b_path):
                     app_dest = b_path
             except Exception:
                 pass
