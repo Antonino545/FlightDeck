@@ -312,8 +312,56 @@ class SystemCardController(AppKit.NSObject):
                         self.mac_install_update_btn.setHidden_(True)
             AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(update_ui)
 
+        def _on_mac_update_progress(percent=0.0, **k):
+            pct = int(percent)
+            def update_ui():
+                if hasattr(self, 'mac_install_update_btn') and self.mac_install_update_btn:
+                    self.mac_install_update_btn.setTitle_(f"⏳ Downloading ({pct}%)...")
+                if hasattr(self, 'mac_update_status_lbl') and self.mac_update_status_lbl:
+                    self.mac_update_status_lbl.setStringValue_(f"Downloading FlightDeck update... ({pct}%)")
+            AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(update_ui)
+
+        def _on_mac_update_step(step_id=None, step_name=None, **k):
+            def update_ui():
+                if step_id == "install":
+                    if hasattr(self, 'mac_install_update_btn') and self.mac_install_update_btn:
+                        self.mac_install_update_btn.setTitle_("📦 Installing...")
+                    if hasattr(self, 'mac_update_status_lbl') and self.mac_update_status_lbl:
+                        self.mac_update_status_lbl.setStringValue_("Installing update package into /Applications...")
+            AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(update_ui)
+
+        def _on_mac_update_installed(**k):
+            def update_ui():
+                if hasattr(self, 'mac_install_update_btn') and self.mac_install_update_btn:
+                    self.mac_install_update_btn.setTitle_("✅ Done! Relaunching...")
+                if hasattr(self, 'mac_update_status_lbl') and self.mac_update_status_lbl:
+                    self.mac_update_status_lbl.setStringValue_("Update successfully installed! Relaunching FlightDeck...")
+                    self.mac_update_status_lbl.setTextColor_(Theme.GREEN)
+                if hasattr(self, 'mac_update_icon') and self.mac_update_icon:
+                    self.mac_update_icon.setStringValue_("🎉")
+            AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(update_ui)
+
+        def _on_mac_update_failed(error=None, **k):
+            err_text = str(error or "Unknown installation error")
+            def update_ui():
+                if hasattr(self, 'mac_install_update_btn') and self.mac_install_update_btn:
+                    self.mac_install_update_btn.setEnabled_(True)
+                    self.mac_install_update_btn.setTitle_("🔄 Retry Update")
+                if hasattr(self, 'mac_check_update_btn') and self.mac_check_update_btn:
+                    self.mac_check_update_btn.setEnabled_(True)
+                if hasattr(self, 'mac_update_status_lbl') and self.mac_update_status_lbl:
+                    self.mac_update_status_lbl.setStringValue_(f"Update failed: {err_text[:60]}")
+                    self.mac_update_status_lbl.setTextColor_(Theme.RED)
+                if hasattr(self, 'mac_update_icon') and self.mac_update_icon:
+                    self.mac_update_icon.setStringValue_("⚠️")
+            AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(update_ui)
+
         event_bus.subscribe("UPDATE_AVAILABLE", _on_mac_update_avail)
         event_bus.subscribe("UPDATE_CHECK_COMPLETE", _on_mac_update_check_done)
+        event_bus.subscribe("UPDATE_DOWNLOAD_PROGRESS", _on_mac_update_progress)
+        event_bus.subscribe("UPDATE_STEP", _on_mac_update_step)
+        event_bus.subscribe("UPDATE_INSTALLED", _on_mac_update_installed)
+        event_bus.subscribe("UPDATE_FAILED", _on_mac_update_failed)
 
     @objc.python_method
     def onToggleAutostartSwitch(self, is_on):

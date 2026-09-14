@@ -231,6 +231,51 @@ class TestWindowsCompatibility(unittest.TestCase):
             with patch.dict("sys.modules", {"winreg": MockWinreg}):
                 self.assertEqual(service.current_version, "1.0.54")
 
+    def test_windows_search_last_version_with_exe(self):
+        """Tests that Windows searches releases for the newest version containing an .exe asset."""
+        from core.services.updater_service import UpdaterService
+        import json
+
+        service = UpdaterService()
+
+        # Mock releases where newest release v1.0.55 only has macOS and Linux,
+        # but earlier release v1.0.54 has FlightDeck-Setup.exe
+        mock_releases = [
+            {
+                "tag_name": "v1.0.55",
+                "name": "FlightDeck v1.0.55",
+                "assets": [
+                    {"name": "FlightDeck-macOS.dmg", "browser_download_url": "https://example.com/mac.dmg"},
+                    {"name": "flightdeck_1.0.55_amd64.deb", "browser_download_url": "https://example.com/deb.deb"}
+                ]
+            },
+            {
+                "tag_name": "v1.0.54",
+                "name": "FlightDeck v1.0.54",
+                "assets": [
+                    {"name": "FlightDeck-macOS.dmg", "browser_download_url": "https://example.com/mac.dmg"},
+                    {"name": "FlightDeck-Setup.exe", "browser_download_url": "https://example.com/win.exe"},
+                    {"name": "flightdeck_1.0.54_amd64.deb", "browser_download_url": "https://example.com/deb.deb"}
+                ]
+            }
+        ]
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(mock_releases).encode("utf-8")
+        mock_resp.__enter__.return_value = mock_resp
+
+        with patch("sys.platform", "win32"), \
+             patch.object(UpdaterService, "current_version", "1.0.50"), \
+             patch("urllib.request.urlopen", return_value=mock_resp):
+            info = service.check_for_updates(background=False)
+            self.assertIsNotNone(info)
+            self.assertTrue(info["has_update"])
+            # Should have bypassed v1.0.55 and selected v1.0.54 because it has the .exe file
+            self.assertEqual(info["tag_name"], "v1.0.54")
+            asset = service.get_platform_asset(info["assets"])
+            self.assertIsNotNone(asset)
+            self.assertEqual(asset["name"], "FlightDeck-Setup.exe")
+
 
 if __name__ == "__main__":
     unittest.main()

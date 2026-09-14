@@ -171,46 +171,66 @@ class UpdaterService:
         def _worker():
             self.is_checking = True
             try:
-                url = f"https://api.github.com/repos/{self.repo}/releases/latest"
+                is_windows = sys.platform == "win32"
+                # On Windows, query releases list to find the latest release containing an executable (.exe) installer
+                if is_windows:
+                    url = f"https://api.github.com/repos/{self.repo}/releases?per_page=20"
+                else:
+                    url = f"https://api.github.com/repos/{self.repo}/releases/latest"
+
                 req = urllib.request.Request(url, headers={
                     "User-Agent": f"FlightDeck-Updater/{self.current_version}",
                     "Accept": "application/vnd.github.v3+json"
                 })
                 with urllib.request.urlopen(req, timeout=12) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    tag_name = data.get("tag_name", "")
-                    has_update = self.is_newer_version(tag_name, self.current_version)
+                    raw_data = json.loads(resp.read().decode("utf-8"))
 
-                    release_info = {
-                        "has_update": has_update,
-                        "version": tag_name.lstrip("vV"),
-                        "tag_name": tag_name,
-                        "name": data.get("name", tag_name),
-                        "body": data.get("body", ""),
-                        "html_url": data.get("html_url", ""),
-                        "assets": data.get("assets", []),
-                        "published_at": data.get("published_at", "")
-                    }
-                    self.latest_release_info = release_info
-                    logger.debug("Update check completed: latest=%s has_update=%s.", tag_name, has_update)
-                    if has_update:
-                        logger.info(f"🚀 New FlightDeck update found: {tag_name} (Current: {self.current_version})")
-                        event_bus.publish("UPDATE_AVAILABLE", **release_info)
-                        try:
-                            from ui.common.banner_presets import get_update_preset
-                            event_bus.publish("TRIGGER_BANNER", event_dict=get_update_preset(tag_name, release_info.get("html_url", "")))
-                        except Exception as b_err:
-                            logger.debug(f"Banner trigger on update: {b_err}")
+                if is_windows:
+                    if isinstance(raw_data, list):
+                        data = self._find_windows_release(raw_data)
+                        if not data and raw_data:
+                            data = raw_data[0]
                     else:
-                        logger.info(f"✨ FlightDeck is up to date (Current: {self.current_version})")
-                        event_bus.publish("UPDATE_CHECK_COMPLETE", has_update=False, current_version=self.current_version)
-                        if manual:
-                            try:
-                                from ui.common.banner_presets import get_up_to_date_preset
-                                event_bus.publish("TRIGGER_BANNER", event_dict=get_up_to_date_preset(self.current_version))
-                            except Exception as b_err:
-                                logger.debug(f"Banner trigger on up-to-date: {b_err}")
-                    return release_info
+                        data = raw_data
+                else:
+                    data = raw_data[0] if isinstance(raw_data, list) and raw_data else raw_data
+
+                if not data:
+                    data = {}
+
+                tag_name = data.get("tag_name", "")
+                has_update = self.is_newer_version(tag_name, self.current_version) if tag_name else False
+
+                release_info = {
+                    "has_update": has_update,
+                    "version": tag_name.lstrip("vV"),
+                    "tag_name": tag_name,
+                    "name": data.get("name", tag_name),
+                    "body": data.get("body", ""),
+                    "html_url": data.get("html_url", ""),
+                    "assets": data.get("assets", []),
+                    "published_at": data.get("published_at", "")
+                }
+                self.latest_release_info = release_info
+                logger.debug("Update check completed: latest=%s has_update=%s.", tag_name, has_update)
+                if has_update:
+                    logger.info(f"🚀 New FlightDeck update found: {tag_name} (Current: {self.current_version})")
+                    event_bus.publish("UPDATE_AVAILABLE", **release_info)
+                    try:
+                        from ui.common.banner_presets import get_update_preset
+                        event_bus.publish("TRIGGER_BANNER", event_dict=get_update_preset(tag_name, release_info.get("html_url", "")))
+                    except Exception as b_err:
+                        logger.debug(f"Banner trigger on update: {b_err}")
+                else:
+                    logger.info(f"✨ FlightDeck is up to date (Current: {self.current_version})")
+                    event_bus.publish("UPDATE_CHECK_COMPLETE", has_update=False, current_version=self.current_version)
+                    if manual:
+                        try:
+                            from ui.common.banner_presets import get_up_to_date_preset
+                            event_bus.publish("TRIGGER_BANNER", event_dict=get_up_to_date_preset(self.current_version))
+                        except Exception as b_err:
+                            logger.debug(f"Banner trigger on up-to-date: {b_err}")
+                return release_info
             except Exception as e:
                 logger.warning(f"Update check failed: {e}")
                 event_bus.publish("UPDATE_CHECK_COMPLETE", has_update=False, error=str(e), current_version=self.current_version)
@@ -231,17 +251,36 @@ class UpdaterService:
         else:
             return _worker()
 
+    def _find_windows_release(self, releases: list) -> Optional[Dict[str, Any]]:
+        """Finds the most recent release containing a Windows .exe installer asset."""
+        for rel in releases:
+            for asset in rel.get("assets", []):
+                name = asset.get("name", "").lower()
+                if name.endswith(".exe"):
+                    return rel
+        return None
+
     def get_platform_asset(self, assets: list) -> Optional[Dict[str, Any]]:
         """Selects the best asset for the current OS (macOS DMG/ZIP vs Ubuntu DEB vs Windows EXE/ZIP)."""
         is_mac = sys.platform == "darwin"
         is_linux = sys.platform.startswith("linux")
         is_windows = sys.platform == "win32"
 
+        # On Windows, prefer executable installer (.exe) first
+        if is_windows:
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if name.endswith(".exe"):
+                    return asset
+            for asset in assets:
+                name = asset.get("name", "").lower()
+                if name.endswith(".msi") or (name.endswith(".zip") and "win" in name):
+                    return asset
+            return None
+
         for asset in assets:
             name = asset.get("name", "").lower()
-            if is_windows and (name.endswith(".exe") or (name.endswith(".zip") and "win" in name) or name.endswith(".msi")):
-                return asset
-            elif is_mac and (name.endswith(".dmg") or (name.endswith(".zip") and "macos" in name)):
+            if is_mac and (name.endswith(".dmg") or (name.endswith(".zip") and "macos" in name)):
                 return asset
             elif is_linux and name.endswith(".deb"):
                 return asset
@@ -318,31 +357,73 @@ class UpdaterService:
             return _worker()
 
     def _install_macos_update(self, package_path: str, temp_dir: str) -> bool:
-        """Mounts DMG or unzips update and replaces /Applications/FlightDeck.app."""
+        """Mounts DMG or unzips update and replaces the running FlightDeck.app in /Applications."""
         try:
+            # 1. Resolve target destination bundle path
             app_dest = "/Applications/FlightDeck.app"
+            try:
+                import AppKit
+                bundle = AppKit.NSBundle.mainBundle()
+                b_path = bundle.bundlePath() if bundle else None
+                if b_path and b_path.endswith(".app") and os.path.exists(b_path):
+                    app_dest = b_path
+            except Exception:
+                pass
+
+            def _find_app(search_dir: str) -> Optional[str]:
+                for candidate in ("FlightDeck.app", "QuakMeeting.app"):
+                    p = os.path.join(search_dir, candidate)
+                    if os.path.exists(p):
+                        return p
+                # Scan for any .app bundle inside directory
+                try:
+                    for f in os.listdir(search_dir):
+                        if f.endswith(".app"):
+                            return os.path.join(search_dir, f)
+                except Exception:
+                    pass
+                return None
+
+            source_app = None
+            mount_point = None
+
             if package_path.endswith(".dmg"):
                 mount_point = os.path.join(temp_dir, "mount")
                 os.makedirs(mount_point, exist_ok=True)
                 subprocess.run(["hdiutil", "attach", package_path, "-mountpoint", mount_point, "-nobrowse", "-quiet"], check=True)
-
-                source_app = os.path.join(mount_point, "FlightDeck.app")
-                if os.path.exists(source_app):
-                    if os.path.exists(app_dest):
-                        shutil.rmtree(app_dest)
-                    shutil.copytree(source_app, app_dest)
-                    logger.info("Successfully updated FlightDeck.app in /Applications!")
-
-                subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], check=False)
+                source_app = _find_app(mount_point)
             elif package_path.endswith(".zip"):
                 subprocess.run(["unzip", "-q", package_path, "-d", temp_dir], check=True)
-                source_app = os.path.join(temp_dir, "FlightDeck.app")
-                if os.path.exists(source_app):
-                    if os.path.exists(app_dest):
-                        shutil.rmtree(app_dest)
-                    shutil.copytree(source_app, app_dest)
+                source_app = _find_app(temp_dir)
 
-            # Clear quarantine and apply ad-hoc codesign with bundle ID and designated requirement to preserve TCC permissions
+            if not source_app or not os.path.exists(source_app):
+                if mount_point and os.path.exists(mount_point):
+                    subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], check=False)
+                raise RuntimeError(f"Could not locate FlightDeck.app in update package: {package_path}")
+
+            # 2. Safely replace installed app (atomic backup move to avoid running-file lock)
+            backup_app = os.path.join(temp_dir, "OldFlightDeckBackup.app")
+            if os.path.exists(app_dest):
+                try:
+                    shutil.move(app_dest, backup_app)
+                except Exception:
+                    shutil.rmtree(app_dest, ignore_errors=True)
+
+            # Clean up any legacy QuakMeeting.app in /Applications
+            legacy_dest = "/Applications/QuakMeeting.app"
+            if os.path.exists(legacy_dest) and legacy_dest != app_dest:
+                try:
+                    shutil.rmtree(legacy_dest, ignore_errors=True)
+                except Exception:
+                    pass
+
+            shutil.copytree(source_app, app_dest)
+            logger.info(f"Successfully installed FlightDeck.app to {app_dest}!")
+
+            if mount_point and os.path.exists(mount_point):
+                subprocess.run(["hdiutil", "detach", mount_point, "-quiet"], check=False)
+
+            # 3. Clear quarantine flags and apply designated requirement ad-hoc codesign
             if os.path.exists(app_dest):
                 subprocess.run(["xattr", "-cr", app_dest], check=False)
                 subprocess.run([
@@ -353,9 +434,15 @@ class UpdaterService:
                 ], check=False)
 
             event_bus.publish("UPDATE_INSTALLED")
-            time.sleep(1.0)
-            # Relaunch newly installed version cleanly on macOS
-            relaunch_cmd = "sleep 1.0; open /Applications/FlightDeck.app &"
+            time.sleep(0.5)
+
+            # 4. Relaunch cleanly once the current PID exits
+            current_pid = os.getpid()
+            relaunch_cmd = (
+                f"tail --pid={current_pid} -f /dev/null 2>/dev/null || sleep 1.2; "
+                f"sleep 0.5; "
+                f"open -n \"{app_dest}\" &"
+            )
             subprocess.Popen(["bash", "-c", relaunch_cmd], start_new_session=True)
             os._exit(0)
             return True

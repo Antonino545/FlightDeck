@@ -234,8 +234,9 @@ On Linux Wayland sessions, Qt uses the native Wayland platform by default. Set `
   - If already up to date: Catppuccin Green-to-Teal accent border, "You're Up to Date! ✨", and a single "✓ Great" confirmation button with auto-dismiss.
 - Clicking **`⚡ UPDATE NOW`** switches into active installation mode:
   1. Downloads release asset while publishing `UPDATE_PROGRESS` events.
-  2. Replaces `/Applications/FlightDeck.app` (macOS) or installs via `dpkg` (Linux).
-  3. Displays `✅ Update Installed! Relaunching...` and smoothly relaunches the application.
+  2. Replaces `/Applications/FlightDeck.app` (macOS via atomic backup and designated codesign), installs via `dpkg` (Linux), or launches the installer `.exe` (Windows).
+  3. On Windows, automatically searches release history for the latest release providing an `.exe` installer (bypassing releases that only ship macOS/Linux assets).
+  4. Displays `✅ Update Installed! Relaunching...` and smoothly relaunches the application once the existing PID exits.
 
 ### 3. Application Entry & Loop (`main.py`)
 - `main.py` detects the platform (`sys.platform`).

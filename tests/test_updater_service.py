@@ -154,5 +154,33 @@ class TestUpdaterService(unittest.TestCase):
                     self.assertIn('=designated => identifier "com.flightdeck.app"', args)
             self.assertTrue(codesign_called)
 
+    def test_mocked_install_macos_update_legacy_fallback(self):
+        from unittest.mock import patch, MagicMock
+
+        mock_run_res = MagicMock(returncode=0, stdout="", stderr="")
+        # Simulate DMG where FlightDeck.app is absent but QuakMeeting.app is present
+        def mock_exists(path):
+            if "FlightDeck.app" in path and "mount" in path:
+                return False
+            if "QuakMeeting.app" in path and "mount" in path:
+                return True
+            return True
+
+        with patch("subprocess.run", return_value=mock_run_res), \
+             patch("subprocess.Popen"), \
+             patch("os._exit"), \
+             patch("os.path.exists", side_effect=mock_exists), \
+             patch("os.makedirs"), \
+             patch("shutil.move"), \
+             patch("shutil.rmtree"), \
+             patch("shutil.copytree") as mock_copy, \
+             patch("time.sleep"):
+            success = self.updater._install_macos_update("/tmp/mock_package.dmg", "/tmp/temp_dir")
+            self.assertTrue(success)
+            self.assertTrue(mock_copy.called)
+            src, dst = mock_copy.call_args[0]
+            self.assertTrue(src.endswith("QuakMeeting.app"))
+            self.assertTrue(dst.endswith("FlightDeck.app"))
+
 if __name__ == "__main__":
     unittest.main()
