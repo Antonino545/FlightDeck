@@ -154,5 +154,73 @@ class TestUpdaterService(unittest.TestCase):
                     self.assertIn('=designated => identifier "com.flightdeck.app"', args)
             self.assertTrue(codesign_called)
 
+    def test_mocked_install_macos_update_legacy_fallback(self):
+        from unittest.mock import patch, MagicMock
+
+        mock_run_res = MagicMock(returncode=0, stdout="", stderr="")
+        # Simulate DMG where FlightDeck.app is absent but QuakMeeting.app is present
+        def mock_exists(path):
+            if "FlightDeck.app" in path and "mount" in path:
+                return False
+            if "QuakMeeting.app" in path and "mount" in path:
+                return True
+            return True
+
+        with patch("subprocess.run", return_value=mock_run_res), \
+             patch("subprocess.Popen"), \
+             patch("os._exit"), \
+             patch("os.path.exists", side_effect=mock_exists), \
+             patch("os.makedirs"), \
+             patch("shutil.move"), \
+             patch("shutil.rmtree"), \
+             patch("shutil.copytree") as mock_copy, \
+             patch("time.sleep"):
+            success = self.updater._install_macos_update("/tmp/mock_package.dmg", "/tmp/temp_dir")
+            self.assertTrue(success)
+            self.assertTrue(mock_copy.called)
+            src, dst = mock_copy.call_args[0]
+            self.assertTrue(src.endswith("QuakMeeting.app"))
+            self.assertTrue(dst.endswith("FlightDeck.app"))
+
+    def test_mocked_install_macos_update_ignores_unrelated_bundle(self):
+        from unittest.mock import patch, MagicMock
+        import sys
+
+        mock_bundle = MagicMock()
+        mock_bundle.bundlePath.return_value = "/Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app"
+        mock_appkit = MagicMock()
+        mock_appkit.NSBundle.mainBundle.return_value = mock_bundle
+        mock_run_res = MagicMock(returncode=0, stdout="", stderr="")
+
+        with patch.dict(sys.modules, {"AppKit": mock_appkit}), \
+             patch("subprocess.run", return_value=mock_run_res), \
+             patch("subprocess.Popen"), \
+             patch("os._exit"), \
+             patch("os.path.exists", return_value=True), \
+             patch("os.makedirs"), \
+             patch("shutil.rmtree"), \
+             patch("shutil.copytree") as mock_copy, \
+             patch("time.sleep"):
+            success = self.updater._install_macos_update("/tmp/mock_package.dmg", "/tmp/temp_dir")
+            self.assertTrue(success)
+            self.assertTrue(mock_copy.called)
+            src, dst = mock_copy.call_args[0]
+            self.assertEqual(dst, "/Applications/FlightDeck.app")
+
+    def test_current_version_ignores_unrelated_bundle(self):
+        from unittest.mock import patch, MagicMock
+        import sys
+
+        mock_bundle = MagicMock()
+        mock_bundle.bundlePath.return_value = "/Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app"
+        mock_bundle.objectForInfoDictionaryKey_.return_value = "3.13.0"
+        mock_appkit = MagicMock()
+        mock_appkit.NSBundle.mainBundle.return_value = mock_bundle
+
+        with patch.dict(sys.modules, {"AppKit": mock_appkit}):
+            # Should NOT return 3.13.0 from Python.app
+            ver = self.updater.current_version
+            self.assertNotEqual(ver, "3.13.0")
+
 if __name__ == "__main__":
     unittest.main()

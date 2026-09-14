@@ -120,6 +120,19 @@ def _disable_autostart_linux() -> bool:
 
 
 
+def _is_flightdeck_bundle(bundle) -> bool:
+    """Returns True if the bundle belongs to FlightDeck or legacy QuakMeeting."""
+    if not bundle:
+        return False
+    b_path = bundle.bundlePath() if hasattr(bundle, "bundlePath") else None
+    if b_path and (b_path.endswith("FlightDeck.app") or b_path.endswith("QuakMeeting.app")):
+        return True
+    b_ident = bundle.bundleIdentifier() if hasattr(bundle, "bundleIdentifier") else None
+    if b_ident and ("flightdeck" in str(b_ident).lower() or "quakmeeting" in str(b_ident).lower()):
+        return True
+    return False
+
+
 def _get_target_app_path() -> str:
     """Resolves the installed or running FlightDeck.app bundle path."""
     standard_app = "/Applications/FlightDeck.app"
@@ -131,7 +144,7 @@ def _get_target_app_path() -> str:
         try:
             import AppKit
             bundle = AppKit.NSBundle.mainBundle()
-            if bundle and bundle.bundlePath() and bundle.bundlePath().endswith(".app"):
+            if bundle and _is_flightdeck_bundle(bundle) and bundle.bundlePath():
                 return bundle.bundlePath()
         except Exception:
             pass
@@ -187,7 +200,7 @@ def _check_smappservice_status() -> Optional[bool]:
         import ServiceManagement
         import AppKit
         bundle = AppKit.NSBundle.mainBundle()
-        if not bundle or not bundle.bundleIdentifier() or not bundle.bundlePath().endswith(".app"):
+        if not bundle or not _is_flightdeck_bundle(bundle) or not bundle.bundleIdentifier():
             return None
 
         service = ServiceManagement.SMAppService.mainAppService()
@@ -235,7 +248,7 @@ def enable_autostart() -> bool:
             import ServiceManagement
             import AppKit
             bundle = AppKit.NSBundle.mainBundle()
-            if bundle and bundle.bundleIdentifier() and bundle.bundlePath().endswith(".app"):
+            if bundle and _is_flightdeck_bundle(bundle) and bundle.bundleIdentifier():
                 service = ServiceManagement.SMAppService.mainAppService()
                 if service is not None:
                     success, err = service.registerAndReturnError_(None)
@@ -291,7 +304,7 @@ def disable_autostart() -> bool:
             import ServiceManagement
             import AppKit
             bundle = AppKit.NSBundle.mainBundle()
-            if bundle and bundle.bundleIdentifier() and bundle.bundlePath().endswith(".app"):
+            if bundle and _is_flightdeck_bundle(bundle) and bundle.bundleIdentifier():
                 service = ServiceManagement.SMAppService.mainAppService()
                 if service is not None:
                     service.unregisterAndReturnError_(None)
