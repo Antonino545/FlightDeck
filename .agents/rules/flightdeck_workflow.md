@@ -1,112 +1,61 @@
 ---
 name: flightdeck-workflow
-description: Required operating guide for all work in FlightDeck: architecture boundaries, reminder safety rules, verification, and delivery hygiene.
+description: Operating guide: architecture boundaries, reminder safety rules, verification, and hygiene.
 trigger: always_on
 ---
 
 # FlightDeck Agent Operating Guide
 
-Read this file before changing the project. For deeper reference, use [docs/PROJECT_GUIDE.md](../../docs/PROJECT_GUIDE.md), [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md), and [docs/CONFIGURATION.md](../../docs/CONFIGURATION.md).
+Reference: [docs/PROJECT_GUIDE.md](../../docs/PROJECT_GUIDE.md), [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md), [docs/CONFIGURATION.md](../../docs/CONFIGURATION.md).
 
-## First actions
+## Fast Navigation & Prompt Protocol (Token & Time Efficiency)
+- **Immediate Focus**: Act directly on the user's latest prompt. Never re-read, re-summarize, or dig through older turns in the chat history unless explicitly asked.
+- **Docs First**: Always consult `docs/PROJECT_GUIDE.md` or `docs/ARCHITECTURE.md` first to locate the single file responsible for a feature.
+- **Pinpoint Grep**: Use `grep_search` / `rg` for specific class or method names; do not open whole files blindly.
+- **Bounded Reads**: When viewing code, use narrow `StartLine` and `EndLine` ranges (max 50–100 lines around target). Never read 500+ lines end-to-end.
+- **Search Before Coding**: `rg -i "<concept>"` in `core/` and `ui/common/`. Check `requirements.txt` before writing new utilities.
 
-1. Verify you are on the `test` branch (`git branch --show-current`) before starting any work. Always ensure you are on `test` before doing anything.
-2. Run `git pull` before making any modification, so you're working against the latest remote state. Resolve or surface any conflicts before proceeding — do not start editing on top of a stale branch.
-3. Inspect `git status --short`. The worktree may contain user changes; preserve them and do not revert, overwrite, or commit them.
-4. Locate the behavior with `rg` before editing. Read the relevant test and the caller/callee around the change.
-5. Before writing any new function, class, or utility, search for an existing equivalent first:
-   - `rg -i "<concept>"` across `core/` and `ui/common/` for similar logic — search by concept, not just the literal name you're about to introduce (e.g. before adding a new duration formatter, search "format_duration", "duration", "minutes").
-   - Check `requirements.txt` / `pyproject.toml` for a library that already solves this before hand-rolling it (date/time math, URL parsing, config validation, etc.).
-   - If something similar exists but doesn't quite fit, extend or parameterize it rather than adding a parallel implementation. If you still add new code, state explicitly in your summary why the existing one couldn't be reused.
-6. Keep changes narrow. Add or update regression tests for behavior changes. If making any architectural, structural, or config changes, update the relevant documentation in `docs/` (`docs/ARCHITECTURE.md`, `docs/PROJECT_GUIDE.md`, `docs/CONFIGURATION.md`) before committing.
-7. Do not commit, create a branch, alter user calendar/config data, install system dependencies, or publish/release anything unless the user explicitly asks. When committing upon explicit user request, always run and verify that all tests pass before committing. Never commit broken code.
+## Protocol & Git
+- Branch: `test` only (`git branch --show-current`). Run `git pull` before modifications.
+- Preserve worktree user changes (`git status --short`).
+- Keep changes narrow; update regression tests and docs in `docs/` for architectural/config changes.
+- **Never auto-commit**: commit only on explicit user request; all unit tests must pass first.
 
-## Prefer existing libraries over new code
+## Architecture Boundaries
+- `core/domain/`: Pure data classes and domain logic; no AppKit/Qt/external calendar APIs.
+- `core/providers/`: Data ingestion. `core/services/`: Caching, ETA, reminders, persistence, event bus.
+- `ui/macos/`: PyObjC/AppKit only. `ui/linux/`: PyQt6 only. `ui/common/`: Shared presentation logic & Catppuccin theme.
+- **Cross-Platform UI Parity**: Keep visual styling and features matched across macOS and Linux/Windows.
+- Service-to-UI: via `EventBus` only. UI handlers must accept the full payload (`event_dict`).
 
-- Date/time math → stdlib `datetime`/`zoneinfo`, not manual arithmetic.
-- Config validation → whatever schema/validation approach is already used in `config_service.py` rather than ad hoc `if key in config` checks scattered across callers.
-- Do not add a new third-party dependency without first checking `requirements.txt` for something already installed that covers the need.
-
-## Architecture boundaries
-
-- `core/domain/` contains data types and pure domain logic. Keep it independent of AppKit, Qt, and provider APIs.
-- `core/providers/` fetch calendar data. `core/services/` owns caching, ETA, reminder evaluation, persistence, and the event bus.
-- `ui/macos/` is PyObjC/AppKit/Quartz only; `ui/linux/` is PyQt6/AppIndicator only. Put shared presentation logic in `ui/common/`.
-- **Cross-Platform UI Parity Invariant**: Whenever UI features, components, layout designs, preferences tabs, or visual styles are modified on macOS (`ui/macos/`), replicate the equivalent design, layout hierarchy, and features on Ubuntu/Linux (`ui/linux/`), and vice-versa. Both desktop platforms must maintain visual styling and functional parity (Catppuccin Mocha theme, cards, controls, action buttons, and status indicators).
-- Use `EventBus` to communicate from services to UI. Do not update UI from the background controller directly.
-- UI handlers must accept the full published payload, including `event_dict`; event publishers and subscribers must stay compatible.
-
-## Calendar and reminder invariants
-
-- Calendar fetch, agenda, status display, and reminder evaluation are **today-only** in the user's local timezone. Do not surface tomorrow's event early.
-- Use `Meeting` and `Meeting.to_dict()` / `Meeting.from_dict()` at service/UI boundaries. Do not invent a second event shape.
-- For normal, video, class, food, and general events, reminder stages use `start_time`.
-- For travel events with `departure_time`, reminder stages use `departure_time`; an additional start-time reminder may still be emitted by the reminder engine.
-- Startup catch-up emits at most one banner for today's most recent due, previously unshown event. Travel events are due at departure; other events are due at start. Never catch up all-day or arrived events.
-- Start UI event subscriptions before starting `AppController`; otherwise an event can be recorded as notified before a banner is deliverable.
-- Persisted notification state prevents duplicates. Preserve state-key compatibility when changing notification behavior, rescheduling logic, snooze, or arrival suppression.
+## Calendar & Reminder Invariants
+- Calendar fetch, agenda, and reminders are strictly **today-only** in local timezone.
+- Boundary entity: `Meeting` (`Meeting.to_dict()` / `from_dict()`).
+- Reminder stages: `start_time` for standard events; `departure_time` for travel events.
+- Startup catch-up: max 1 banner for today's most recent due event; never catch up all-day or arrived events.
+- Preserve persisted notification state keys to prevent duplicate banners.
 - Always use `format_duration()` for user-visible durations.
 
-## macOS-specific constraints
+## macOS Constraints
+- Preserve in-process Mach-O launcher in `build_macos_app.py`.
+- Banner overlays must run on the AppKit main thread (non-activating, all-spaces panel).
+- Python binary: `/opt/miniconda3/bin/python3`.
 
-- Preserve the in-process Mach-O launcher in `build_macos_app.py`. Replacing it with `execv` or a shell launcher breaks bundle association and the native menu bar.
-- Banner overlays must remain on the AppKit main thread. Maintain the non-activating, all-spaces, full-screen auxiliary panel behavior in the banner controller.
-- The normal Python path is `/opt/miniconda3/bin/python3`.
+## Verification Workflow
+Detect OS (`uname -s`):
+- **macOS**:
+  1. `/opt/miniconda3/bin/python3 -m unittest discover -s tests -v`
+  2. `/opt/miniconda3/bin/python3 build_macos_app.py`
+  3. `ditto "$PWD/FlightDeck.app" /Applications/FlightDeck.app`
+  4. `pkill -f "FlightDeck" 2>/dev/null; sleep 1; open /Applications/FlightDeck.app`
+  5. `sleep 2 && ps aux | grep -i "[F]lightDeck" && tail -15 ~/.flightdeck/flightdeck.log`
+- **Linux**:
+  1. `python3 -m unittest discover -s tests -v`
+  2. `bash scripts/build_ubuntu_deb.sh`
+  3. `sudo apt-get install --reinstall ./deb_dist/flightdeck_*_amd64.deb` (ask user approval)
+  4. `pkill -f "flightdeck" 2>/dev/null; sleep 1; flightdeck &`
+  5. `tail -15 ~/.flightdeck/flightdeck.log`
 
-## Required verification after code or configuration changes
-
-Before running any verification commands, detect which platform you're actually on — do not assume or run both blindly:
-
-```bash
-uname -s   # "Darwin" → macOS workflow below; "Linux" → Ubuntu/Debian workflow below
-```
-
-Run the complete platform workflow for the detected OS only. If a command needs system-level permissions, explain the exact action and request approval rather than bypassing it.
-
-### macOS
-
-```bash
-# 1. Tests
-/opt/miniconda3/bin/python3 -m unittest discover -s tests -v
-
-# 2. Rebuild the bundle
-/opt/miniconda3/bin/python3 build_macos_app.py
-
-# 3. Install the fresh bundle, then restart it
-ditto "$PWD/FlightDeck.app" /Applications/FlightDeck.app
-pkill -f "FlightDeck" 2>/dev/null; sleep 1; open /Applications/FlightDeck.app
-
-# 4. Confirm process and logs
-sleep 2 && ps aux | grep -i "[F]lightDeck" && tail -15 ~/.flightdeck/flightdeck.log
-```
-
-### Ubuntu/Debian Linux
-
-```bash
-# 1. Tests
-python3 -m unittest discover -s tests -v
-
-# 2. Build the package
-bash scripts/build_ubuntu_deb.sh
-
-# 3. Install and restart (requires explicit user approval)
-sudo apt-get install --reinstall ./deb_dist/flightdeck_*_amd64.deb
-pkill -f "flightdeck" 2>/dev/null; sleep 1; flightdeck &
-
-# 4. Confirm logs
-tail -15 ~/.flightdeck/flightdeck.log
-```
-
-### Static hygiene (before delivery)
-
-- Run `ruff check core ui` (or `pyflakes` if `ruff` isn't installed) and resolve unused imports/names introduced by this change.
-- If a change replaces or removes a code path, `rg` for its old name across the repo to confirm nothing still references it, and delete the dead file or function rather than leaving it unused "just in case."
-
-## Delivery checklist
-
-- Before committing changes upon user request, verify that all unit tests pass (`/opt/miniconda3/bin/python3 -m unittest discover -s tests -v`).
-- Update documentation in `docs/` (`docs/ARCHITECTURE.md`, `docs/PROJECT_GUIDE.md`, `docs/CONFIGURATION.md`) before committing if any architectural, interface, or configuration changes were made.
-- Confirm no new code duplicates existing logic in `core/` or `ui/common/`, and that no already-installed library could have replaced hand-written code.
-- Report the outcome first, then concise evidence: tests/build/restart status and relevant files.
-- Call out any verification limitation rather than claiming an unobserved UI result.
-- Do not include unrelated existing modifications in the claimed change set.
+## Output Hygiene
+- Be concise. Report outcome first, then test/build/restart status and files modified.
+- Avoid repeating entire file dumps or restating rules.
