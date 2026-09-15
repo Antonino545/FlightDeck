@@ -261,7 +261,8 @@ class BannerHUDPainter:
         reminder_stage: Optional[int],
         button_rects: Dict[str, AppKit.NSRect],
         pressed_button: Optional[str],
-        hovered_button: Optional[str]
+        hovered_button: Optional[str],
+        is_bill: bool = False
     ):
         # 1. Main Action Button
         btn_act_rect = button_rects["action"]
@@ -311,7 +312,6 @@ class BannerHUDPainter:
             ns_btn_str.drawAtPoint_withAttributes_(AppKit.NSMakePoint(text_x, text_y), btn_attrs)
 
         # 2. "📍 I'm Here" / "✅ Mark Paid" Dismissal Button
-        is_bill = getattr(banner_view, "is_bill", False)
         if (has_maps_url or is_bill) and button_rects["arrived"].size.width > 0:
             is_pressed_arr = (pressed_button == "arrived")
             is_hovered_arr = (hovered_button == "arrived")

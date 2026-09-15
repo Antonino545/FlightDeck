@@ -606,7 +606,8 @@ class QuakPitBannerView(AppKit.NSView):
             self.reminder_stage,
             rects,
             self.pressed_button,
-            self.hovered_button
+            self.hovered_button,
+            is_bill=getattr(self, "is_bill", False)
         )
 
         # 10. Vector Pilot Mascot with Dynamic Pitch Rotation
