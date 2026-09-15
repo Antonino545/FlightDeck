@@ -55,6 +55,8 @@ DEFAULT_CONFIG = {
     "default_pilot": "duck",           # Active default mascot ("duck", "owl", "bunny")
     "force_default_pilot": False,      # If True, always uses default_pilot for all notifications instead of auto-categorization
     "calendar_category_map": {},       # Direct Calendar -> Category mappings e.g. {"Studio": "study", "Work": "work"}
+    "enable_bill_reminders": True,      # Repeat notifications for bills/rent until paid
+    "bill_reminder_interval_minutes": 120, # Interval in minutes between bill reminders (30, 60, 120, 240)
     "mascot_customization": {
         "exam": {"animal": "owl", "outfit": "student"},
         "study": {"animal": "owl", "outfit": "student"},
@@ -66,6 +68,7 @@ DEFAULT_CONFIG = {
         "health": {"animal": "panda", "outfit": "zen"},
         "work": {"animal": "penguin", "outfit": "agent"},
         "concert": {"animal": "fox", "outfit": "concert", "accessories": ["headphones"]},
+        "bill": {"animal": "duck", "outfit": "banker"},
         "general": {"animal": "duck", "outfit": "aviator"}
     },
     "custom_keywords": {
@@ -125,6 +128,14 @@ DEFAULT_CONFIG = {
             "stadium", "arena", "tickets", "ticket", "concerto", "concerti", "musica dal vivo",
             "spettacolo", "palasport", "teatro", "opera", "dj set", "biglietti", "biglietto"
         ],
+        "bill": [
+            "rent", "affitto", "affitti", "bill", "bills", "bolletta", "bollette",
+            "invoice", "invoices", "fattura", "fatture", "payment", "payments",
+            "pagamento", "pagamenti", "pay", "pagare", "subscription", "subscriptions",
+            "abbonamento", "abbonamenti", "mortgage", "mutuo", "tax", "taxes",
+            "tassa", "tasse", "condominio", "insurance", "assicurazione",
+            "rata", "rate", "scadenza", "scadenze", "due date"
+        ],
         "general": [
             "meeting", "sync", "catchup", "call", "riunione", "allineamento", "confronto"
         ]
@@ -146,6 +157,8 @@ PILOT_TO_CATEGORY_MAP = {
     "penguin": "work",
     "work": "work",
     "concert": "concert",
+    "banker": "bill",
+    "bill": "bill",
     "general": "general"
 }
 

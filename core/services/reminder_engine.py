@@ -32,6 +32,7 @@ class ReminderEngine:
         from core.services.notification_service import NotificationService, notification_service
         self.notification_service = notification_service if (config is None and bus is None) else NotificationService(config=self.config, bus=self.bus)
         self.bus.subscribe("MARK_ARRIVED", lambda **kwargs: self.mark_arrived(kwargs.get("meeting_id")) if kwargs.get("meeting_id") else None)
+        self.bus.subscribe("MARK_PAID", lambda **kwargs: self.mark_bill_paid(kwargs.get("meeting_id")) if kwargs.get("meeting_id") else None)
 
     def _dispatch_reminder(self, meeting: Meeting, stage: int) -> None:
         """Dispatches notification via unified NotificationService."""
@@ -49,6 +50,21 @@ class ReminderEngine:
             self._add_notified_key(f"{meeting_id}_stage_{s}")
         self._add_notified_key(f"{meeting_id}_departure_alert")
         logger.info(f"Suppressed future reminders for arrived event: {meeting_id}")
+
+    def mark_bill_paid(self, meeting_id: str) -> None:
+        """Marks a bill as paid, suppressing all recurring bill notifications for it."""
+        today_str = self.clock.now().astimezone().strftime("%Y-%m-%d")
+        self._add_notified_key(f"{meeting_id}_paid")
+        self._add_notified_key(f"{meeting_id}_{today_str}_paid")
+        self.mark_arrived(meeting_id)
+        logger.info(f"Marked bill as paid, suppressing future reminders: {meeting_id}")
+
+    def is_bill_paid(self, meeting_id: str, today_str: Optional[str] = None) -> bool:
+        """Checks if a bill event has been marked as paid."""
+        if f"{meeting_id}_paid" in self.notified_stage_keys:
+            return True
+        date_str = today_str or self.clock.now().astimezone().strftime("%Y-%m-%d")
+        return f"{meeting_id}_{date_str}_paid" in self.notified_stage_keys
 
     def reset_state(self) -> None:
         """Clear fired notifications cache (useful for testing or daily reset)."""
@@ -176,9 +192,50 @@ class ReminderEngine:
         logger.info(f"📊 [Scanner] Evaluating {len(meetings)} events at {now.astimezone().strftime('%H:%M:%S')} (Busy: {has_active_meeting})...")
 
         for m in meetings:
-            if m.is_all_day:
+            is_bill = (getattr(m, "category", "") == "bill" or getattr(m, "event_type", "") == "bill")
+
+            # Non-bill all-day events are skipped
+            if m.is_all_day and not is_bill:
                 continue
             if not m.start_time:
+                continue
+
+            # Special recurring reminder evaluation for bills (rent, bollette, subscriptions, payments)
+            if is_bill:
+                if not self.config.get("enable_bill_reminders", True):
+                    logger.info(f"  ✓ \"{m.title}\" | Bill reminders disabled in settings. Suppressed.")
+                    continue
+
+                now_local = now.astimezone()
+                today_str = now_local.strftime("%Y-%m-%d")
+
+                if self.is_bill_paid(m.id, today_str=today_str) or arrival_service.is_meeting_arrived(m):
+                    logger.info(f"  ✓ \"{m.title}\" | Bill already marked paid. Suppressed.")
+                    continue
+
+                interval = max(15, int(self.config.get("bill_reminder_interval_minutes", 120)))
+                # Active waking hours (default 08:00 to 22:00)
+                start_hour = int(self.config.get("bill_reminder_start_hour", 8))
+                end_hour = int(self.config.get("bill_reminder_end_hour", 22))
+
+                if self.config.get("bill_respect_quiet_hours", True):
+                    if now_local.hour < start_hour or now_local.hour >= end_hour:
+                        logger.debug(f"Bill reminder for '{m.title}' outside active hours ({start_hour}:00-{end_hour}:00)")
+                        continue
+
+                mins_since_start = max(0, (now_local.hour - start_hour) * 60 + now_local.minute)
+                slot = int(mins_since_start // interval)
+                slot_key = f"{m.id}_{today_str}_bill_slot_{slot}"
+
+                if slot_key not in self.notified_stage_keys:
+                    self._add_notified_key(slot_key)
+                    m_triggered = Meeting.from_dict(m.to_dict())
+                    m_triggered.reminder_stage = 0
+                    if has_active_meeting and not self.is_meeting_active(m, now):
+                        m_triggered.is_quiet_reminder = True
+                    triggered_events.append((m_triggered, 0))
+                    logger.info(f"💳 >>> TRIGGER BILL REMINDER [Slot {slot}, interval={interval}m] for \"{m.title}\"")
+                    self._dispatch_reminder(m_triggered, stage=0)
                 continue
 
             # Skip events that have already ended or are in the past (>45 min ago with no end_time)

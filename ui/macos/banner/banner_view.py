@@ -55,6 +55,8 @@ class QuakPitBannerView(AppKit.NSView):
         self.departure_time = _norm_dt(meeting_data.get("departure_time"))
         self.origin_address = meeting_data.get("origin_address")
         self.eta_text = meeting_data.get("eta_text")
+        self.category = meeting_data.get("category") or meeting_data.get("event_type") or "general"
+        self.is_bill = (self.category == "bill")
 
         # Determine Late Status
         self.is_late = self._compute_is_late()
@@ -232,7 +234,8 @@ class QuakPitBannerView(AppKit.NSView):
 
     def _get_button_rects(self, banner_x, banner_y):
         return self.layout_mgr.get_button_rects(
-            banner_x, banner_y, self.has_maps_url, self.has_real_url, self.reminder_stage
+            banner_x, banner_y, self.has_maps_url, self.has_real_url, self.reminder_stage,
+            is_bill=getattr(self, "is_bill", False)
         )
 
     def _get_interactive_rects(self, banner_x: float, banner_y: float, plane_x: float, plane_y: float):
@@ -403,7 +406,10 @@ class QuakPitBannerView(AppKit.NSView):
                     self.controller.trigger_acknowledge()
         elif clicked == "arrived" and AppKit.NSPointInRect(loc, rects["arrived"]):
             if self.controller:
-                self.controller.trigger_arrived()
+                if getattr(self, "is_bill", False):
+                    self.controller.trigger_mark_paid()
+                else:
+                    self.controller.trigger_arrived()
         elif clicked == "snooze1" and AppKit.NSPointInRect(loc, rects["snooze1"]):
             if self.controller:
                 if self.reminder_stage == 0:

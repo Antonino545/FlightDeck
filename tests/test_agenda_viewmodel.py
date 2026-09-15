@@ -209,6 +209,43 @@ class TestAgendaViewModel(unittest.TestCase):
             self.assertEqual(ev.countdown_text, "Completed")
             self.assertFalse(ev.is_urgent)
 
+    def test_all_day_and_bill_events_in_command_center(self):
+        clock = FakeClock(datetime(2026, 9, 10, 10, 0, 0, tzinfo=timezone.utc))
+
+        # 1. All-day bill event (00:00 - 23:59)
+        bill_event = CalendarEvent(
+            uid="bill-rent",
+            title="Monthly Rent Due",
+            start_time=datetime(2026, 9, 10, 0, 0, 0, tzinfo=timezone.utc),
+            end_time=datetime(2026, 9, 10, 23, 59, 59, tzinfo=timezone.utc),
+            is_all_day=True,
+            category="bill",
+            pilot_type="duck"
+        )
+        # 2. Timed upcoming event (11:00 - 12:00)
+        upcoming_event = CalendarEvent(
+            uid="evt-upcoming",
+            title="Client Sync",
+            start_time=datetime(2026, 9, 10, 11, 0, 0, tzinfo=timezone.utc),
+            end_time=datetime(2026, 9, 10, 12, 0, 0, tzinfo=timezone.utc),
+        )
+
+        vm_bill = AgendaViewModel.build_event_vm(bill_event, clock=clock)
+        self.assertTrue(vm_bill.is_all_day)
+        self.assertEqual(vm_bill.time_display, "All Day")
+        self.assertEqual(vm_bill.countdown_text, "All Day")
+        self.assertEqual(vm_bill.state, EventState.UPCOMING)
+
+        cc = AgendaViewModel.build_command_center([bill_event, upcoming_event], clock=clock)
+        # MUST NOT appear as now_event!
+        self.assertIsNone(cc.now_event)
+        # MUST NOT hijack next_event! Next event is the timed 11:00 event
+        self.assertIsNotNone(cc.next_event)
+        self.assertEqual(cc.next_event.uid, "evt-upcoming")
+        # Bill MUST be listed in later_events
+        later_uids = [e.uid for e in cc.later_events]
+        self.assertIn("bill-rent", later_uids)
+
 
 if __name__ == "__main__":
     unittest.main()

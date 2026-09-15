@@ -314,7 +314,17 @@ class FlightDeckTrayApp:
             meeting_objects = calendar_service.get_upcoming_meetings()
         try:
             now = datetime.now().astimezone()
-            today_up = [m for m in meeting_objects if m.start_time and m.start_time.astimezone().date() == now.date() and ((m.end_time and m.end_time.astimezone() > now) or m.start_time.astimezone() > now)]
+            def _is_all_day_or_bill(ev):
+                if isinstance(ev, dict):
+                    return bool(ev.get("is_all_day", False) or ev.get("category") == "bill" or ev.get("event_type") == "bill")
+                return bool(getattr(ev, "is_all_day", False) or getattr(ev, "category", None) == "bill" or getattr(ev, "event_type", None) == "bill")
+
+            today_up = [
+                m for m in meeting_objects
+                if m.start_time and m.start_time.astimezone().date() == now.date()
+                and ((m.end_time and m.end_time.astimezone() > now) or m.start_time.astimezone() > now)
+                and not _is_all_day_or_bill(m)
+            ]
 
             primary_m = today_up[0] if today_up else None
             max_lookahead_min = int(config.get("max_countdown_lookahead_hours", 3)) * 60

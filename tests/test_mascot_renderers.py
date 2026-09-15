@@ -16,12 +16,12 @@ class TestMascotRenderers(unittest.TestCase):
 
         try:
             for animal, _ in ANIMALS:
-                # Test with default outfit, student outfit, work/agent, concert, and tuxedo outfits
-                for outfit in ("aviator", "student", "agent", "concert", "tuxedo"):
+                # Test with default outfit, student outfit, work/agent, concert, tuxedo, and banker outfits
+                for outfit in ("aviator", "student", "agent", "concert", "tuxedo", "banker"):
                     renderer = ModularPilotRenderer(
                         animal=animal,
                         outfit=outfit,
-                        accessories=("sunglasses", "bow_tie", "badge", "earpiece", "headphones", "tuxedo", "top_hat")
+                        accessories=("sunglasses", "bow_tie", "badge", "earpiece", "headphones", "tuxedo", "top_hat", "banker_visor", "gold_coin")
                     )
                     # Tick 10 (open eyes) and Tick 76 (blinking eye window)
                     for tick in (10, 76):
@@ -43,11 +43,11 @@ class TestMascotRenderers(unittest.TestCase):
         p = QPainter(img)
         try:
             for animal, _ in ANIMALS:
-                for outfit in ("aviator", "student", "agent", "concert", "tuxedo"):
+                for outfit in ("aviator", "student", "agent", "concert", "tuxedo", "banker"):
                     renderer = QtModularRenderer(
                         animal=animal,
                         outfit=outfit,
-                        accessories=("sunglasses", "bow_tie", "badge", "earpiece", "headphones", "tuxedo", "top_hat")
+                        accessories=("sunglasses", "bow_tie", "badge", "earpiece", "headphones", "tuxedo", "top_hat", "banker_visor", "gold_coin")
                     )
                     for tick in (10, 76):
                         try:
@@ -84,6 +84,11 @@ class TestMascotRenderers(unittest.TestCase):
         # 3. Concert outfit always includes headphones
         concert_acc = normalize_accessories(outfit="concert", animal="fox")
         self.assertIn("headphones", concert_acc)
+
+        # 4. Banker outfit always includes banker_visor and gold_coin
+        banker_acc = normalize_accessories(outfit="banker", animal="duck")
+        self.assertIn("banker_visor", banker_acc)
+        self.assertIn("gold_coin", banker_acc)
 
 
 if __name__ == "__main__":

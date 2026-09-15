@@ -126,6 +126,8 @@ class QtDuckBannerWindow(QWidget):
             self.action_btn_text = str(event_data.get("action_btn_text") or "🚀 JOIN NOW")
 
         # Modular animal & outfit customization
+        self.category = str(event_data.get("category") or "")
+        self.is_bill = (self.category == "bill")
         self.animal = event_data.get("animal")
         self.outfit = event_data.get("outfit")
 
@@ -401,7 +403,13 @@ class QtDuckBannerWindow(QWidget):
         btn_y = by + self.card_h - btn_h - 14.0
         is_stage_zero = (self.reminder_stage == 0)
 
-        if is_stage_zero:
+        if self.is_bill:
+            # 2 Buttons for Bill: [Action / Pay (260px)] [✅ Mark Paid (227px)]
+            btn_action_rect = QRectF(bx + 18.0, btn_y, 260.0, btn_h)
+            btn_arrived_rect = QRectF(bx + 290.0, btn_y, 227.0, btn_h)
+            btn_snooze1_rect = QRectF(0, 0, 0, 0)
+            btn_snooze2_rect = QRectF(0, 0, 0, 0)
+        elif is_stage_zero:
             if self.has_maps_url:
                 if self.has_real_url:
                     # 2 Buttons: [Action / Directions (260px)] [📍 I'm Here (227px)]
@@ -632,17 +640,35 @@ class QtDuckBannerWindow(QWidget):
                 QDesktopServices.openUrl(QUrl(self.action_url))
             self._dismiss()
         elif clicked == "arrived" and rects["arrived"].contains(pos):
-            try:
-                from core.services.state_store import banner_history_store
-                banner_history_store.record_action(meeting_id, "arrived")
-            except Exception:
-                pass
-            if meeting_id:
+            if self.is_bill:
                 try:
-                    from core.services.event_bus import event_bus
-                    event_bus.publish("MARK_ARRIVED", meeting_id=meeting_id)
+                    from core.services.reminder_engine import reminder_engine
+                    reminder_engine.mark_bill_paid(meeting_id)
                 except Exception:
                     pass
+                try:
+                    from core.services.state_store import banner_history_store
+                    banner_history_store.record_action(meeting_id, "bill_paid")
+                except Exception:
+                    pass
+                if meeting_id:
+                    try:
+                        from core.services.event_bus import event_bus
+                        event_bus.publish("MARK_PAID", meeting_id=meeting_id)
+                    except Exception:
+                        pass
+            else:
+                try:
+                    from core.services.state_store import banner_history_store
+                    banner_history_store.record_action(meeting_id, "arrived")
+                except Exception:
+                    pass
+                if meeting_id:
+                    try:
+                        from core.services.event_bus import event_bus
+                        event_bus.publish("MARK_ARRIVED", meeting_id=meeting_id)
+                    except Exception:
+                        pass
             self._dismiss()
         elif clicked == "snooze1" and rects["snooze1"].contains(pos):
             try:
@@ -1002,8 +1028,8 @@ class QtDuckBannerWindow(QWidget):
             p.setFont(QFont("Inter, Arial", 10, QFont.Weight.ExtraBold))
             p.drawText(btn_act_rect, Qt.AlignmentFlag.AlignCenter, btn_text)
 
-        # 2. "📍 I'm Here" Arrival Dismissal Button
-        if self.has_maps_url and rects["arrived"].width() > 0:
+        # 2. "📍 I'm Here" or "✅ Mark Paid" Arrival/Paid Dismissal Button
+        if (self.has_maps_url or self.is_bill) and rects["arrived"].width() > 0:
             is_pressed_arr = (self.pressed_button == "arrived")
             is_hovered_arr = (self.hovered_button == "arrived")
             btn_arr_rect = rects["arrived"]
@@ -1019,9 +1045,10 @@ class QtDuckBannerWindow(QWidget):
             p.setPen(QPen(QColor(77, 217, 140, 115), 1.0))
             p.drawRoundedRect(btn_arr_rect, 9.0, 9.0)
 
+            arr_text = t("banner_mark_paid", default="✅ Mark Paid") if self.is_bill else t("banner_im_here", default="📍 I'm Here")
             p.setPen(QColor(77, 217, 140))
             p.setFont(QFont("Inter, Arial", 9, QFont.Weight.Bold))
-            p.drawText(btn_arr_rect, Qt.AlignmentFlag.AlignCenter, t("banner_im_here", default="📍 I'm Here"))
+            p.drawText(btn_arr_rect, Qt.AlignmentFlag.AlignCenter, arr_text)
 
         # 3. Snooze / Acknowledge Buttons
         is_stage_zero = (self.reminder_stage == 0)

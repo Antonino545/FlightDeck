@@ -124,7 +124,7 @@ FlightDeck/
 │       └── banner/                # PyQt6 animated banner overlay
 │           ├── qt_banner.py
 │           └── renderers/         # Modular PyQt6 pilot renderers
-└── tests/                         # Full automated unit test suite (195+ tests)
+└── tests/                         # Full automated unit test suite (283+ tests)
 ```
 
 ---

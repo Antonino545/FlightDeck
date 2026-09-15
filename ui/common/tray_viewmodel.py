@@ -24,6 +24,11 @@ class TrayViewModel:
         is_dict = isinstance(next_m, dict)
         get_val = lambda key, default=None: next_m.get(key, default) if is_dict else getattr(next_m, key, default)
 
+        is_all_day = bool(get_val("is_all_day", False))
+        category = str(get_val("category", "") or get_val("event_type", "") or "")
+        if is_all_day or category == "bill":
+            return "🦆" if mode == "icon_only" else "🦆 FlightDeck"
+
         icon_map = {"chef": "🍕", "captain": "✈️", "owl": "🎓", "driver": "🚗", "zen_duck": "🛋️", "duck": "🦆"}
         p_type = get_val("pilot_type", "duck")
         icon_prefix = icon_map.get(p_type, "🦆")

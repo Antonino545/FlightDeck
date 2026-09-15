@@ -347,10 +347,17 @@ class FlightDeckMenuBar(AppKit.NSObject):
     def build_menu(self):
         now = datetime.now().astimezone()
         from datetime import timedelta
+
+        def _is_all_day_or_bill(ev):
+            if isinstance(ev, dict):
+                return bool(ev.get("is_all_day", False) or ev.get("category") == "bill" or ev.get("event_type") == "bill")
+            return bool(getattr(ev, "is_all_day", False) or getattr(ev, "category", None) == "bill" or getattr(ev, "event_type", None) == "bill")
+
         today_upcoming = [
             m for m in self.meetings
             if m.get("start_time") and m["start_time"].astimezone().date() == now.date()
             and ((m.get("end_time") and m["end_time"] > now) or m["start_time"] > now)
+            and not _is_all_day_or_bill(m)
         ]
 
         tomorrow_date = now.date() + timedelta(days=1)

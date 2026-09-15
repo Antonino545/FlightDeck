@@ -27,6 +27,8 @@ ACCESSORIES = (
     "earpiece",
     "tuxedo",
     "top_hat",
+    "banker_visor",
+    "gold_coin",
 )
 
 LEGACY_OUTFIT_ACCESSORIES = {
@@ -37,6 +39,7 @@ LEGACY_OUTFIT_ACCESSORIES = {
     "racer": ("pilot_helmet",),
     "aviator": ("aviator_goggles",),
     "concert": ("headphones",),
+    "banker": ("banker_visor", "gold_coin"),
 }
 
 

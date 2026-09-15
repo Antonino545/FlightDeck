@@ -263,7 +263,7 @@ class SettingsTabController(AppKit.NSObject):
         n_cals = len(cals) if cals else 1
 
         card_heights = {
-            0: 362.0,
+            0: 460.0,
             1: 424.0,
             2: 80.0 + n_cals * 40.0 + 16.0,
             3: 418.0,
@@ -336,6 +336,10 @@ class SettingsTabController(AppKit.NSObject):
     @objc.IBAction
     def onToggleTravelStage_(self, sender):
         self.timing_card.onToggleTravelStage_(sender)
+
+    @objc.IBAction
+    def onSelectBillInterval_(self, sender):
+        self.timing_card.onSelectBillInterval_(sender)
 
     @objc.IBAction
     def onSelectModeBtn_(self, sender):

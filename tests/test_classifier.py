@@ -20,6 +20,7 @@ class TestEventClassifier(unittest.TestCase):
                 "in_person": {"animal": "duck", "outfit": "racer"},
                 "health": {"animal": "duck", "outfit": "zen"},
                 "work": {"animal": "penguin", "outfit": "agent"},
+                "bill": {"animal": "duck", "outfit": "banker"},
                 "concert": {"animal": "fox", "outfit": "aviator"},
                 "general": {"animal": "duck", "outfit": "aviator"}
             }
@@ -451,6 +452,41 @@ class TestEventClassifier(unittest.TestCase):
             self.assertEqual(m_meet_work.event_type, EventCategory.WORK.value)
             self.assertEqual(m_meet_work.meeting_url, "https://meet.google.com/xyz-abcd-efg")
             self.assertIn("GOOGLE MEET", m_meet_work.action_btn_text)
+
+    def test_bill_classification(self):
+        # 1. By keyword: rent / apartment
+        m_rent = self.classifier.classify(title="Monthly Rent Payment")
+        self.assertEqual(m_rent.event_type, EventCategory.BILL.value)
+        self.assertEqual(m_rent.outfit, "banker")
+        self.assertEqual(m_rent.action_btn_text, "💳 PAY BILL")
+
+        # 2. In Italian: affitto
+        m_affitto = self.classifier.classify(title="Pagamento affitto casa")
+        self.assertEqual(m_affitto.event_type, EventCategory.BILL.value)
+        self.assertEqual(m_affitto.outfit, "banker")
+
+        # 3. Italian utility bills: bolletta luce e gas
+        m_bolletta = self.classifier.classify(title="Scadenza bolletta luce e gas")
+        self.assertEqual(m_bolletta.event_type, EventCategory.BILL.value)
+
+        # 4. Invoices and taxes
+        m_inv = self.classifier.classify(title="Invoice #1042 due")
+        self.assertEqual(m_inv.event_type, EventCategory.BILL.value)
+
+        m_f24 = self.classifier.classify(title="Scadenza pagamento F24")
+        self.assertEqual(m_f24.event_type, EventCategory.BILL.value)
+
+        # 5. Direct calendar mapping to bill
+        with unittest.mock.patch("core.services.config_service.config.get", side_effect=lambda k, d=None: {
+            "calendar_category_map": {"Finance & Bills": "bill"},
+            "mascot_customization": {
+                "bill": {"animal": "duck", "outfit": "banker"},
+                "general": {"animal": "duck", "outfit": "aviator"}
+            }
+        }.get(k, d)):
+            m_cal = self.classifier.classify(title="Generic Payment Note", calendar_name="Finance & Bills")
+            self.assertEqual(m_cal.event_type, EventCategory.BILL.value)
+            self.assertEqual(m_cal.outfit, "banker")
 
 
 

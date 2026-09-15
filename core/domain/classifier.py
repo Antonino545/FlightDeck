@@ -112,6 +112,15 @@ DEFAULT_KEYWORDS = {
         "concert", "concerts", "live music", "festival", "gig", "gigs", "tour", "band",
         "stadium", "arena", "tickets", "ticket", "concerto", "concerti", "musica dal vivo",
         "spettacolo", "palasport", "teatro", "opera", "dj set", "biglietti", "biglietto"
+    ],
+    "bill": [
+        "rent", "affitto", "affitti", "bill", "bills", "bolletta", "bollette",
+        "invoice", "invoices", "fattura", "fatture", "payment", "payments",
+        "pagamento", "pagamenti", "pay", "pagare", "subscription", "subscriptions",
+        "abbonamento", "abbonamenti", "mortgage", "mutuo", "tax", "taxes",
+        "tassa", "tasse", "condominio", "insurance", "assicurazione",
+        "rata", "rate", "scadenza", "scadenze", "due date", "utility", "utilities",
+        "enel", "luce", "gas", "internet bill", "bolletta luce", "bolletta gas"
     ]
 }
 
@@ -185,6 +194,17 @@ PREFIX_CATEGORY_WORDS: Dict[str, EventCategory] = {
     "concert": EventCategory.CONCERT,
     "concerto": EventCategory.CONCERT,
     "live": EventCategory.CONCERT,
+    "bill": EventCategory.BILL,
+    "bills": EventCategory.BILL,
+    "bolletta": EventCategory.BILL,
+    "bollette": EventCategory.BILL,
+    "rent": EventCategory.BILL,
+    "affitto": EventCategory.BILL,
+    "payment": EventCategory.BILL,
+    "pagamento": EventCategory.BILL,
+    "invoice": EventCategory.BILL,
+    "fattura": EventCategory.BILL,
+    "scadenza": EventCategory.BILL,
 }
 
 _PREFIX_ALTS = "|".join(re.escape(k) for k in sorted(PREFIX_CATEGORY_WORDS.keys(), key=len, reverse=True))
@@ -245,6 +265,13 @@ ANCHOR_CATEGORY_MAP: Dict[str, EventCategory] = {
     # Concert
     "concert": EventCategory.CONCERT,
     "concerto": EventCategory.CONCERT,
+    # Bills & Rent
+    "bill": EventCategory.BILL,
+    "bills": EventCategory.BILL,
+    "rent": EventCategory.BILL,
+    "affitto": EventCategory.BILL,
+    "bolletta": EventCategory.BILL,
+    "bollette": EventCategory.BILL,
     # Appointments
     "dentist": EventCategory.IN_PERSON,
     "doctor": EventCategory.IN_PERSON,
@@ -540,6 +567,18 @@ class EventClassifier:
                 action_url=maps_url, theme_name="Sunset Orange", is_travel=True,
                 classroom=classroom, teacher=teacher
             )
+        elif category == EventCategory.BILL:
+            bill_dest = location if (location and location != "missing value") else ""
+            maps_url = f"https://maps.apple.com/?q={urllib.parse.quote(bill_dest)}" if bill_dest else "https://calendar.apple.com"
+            m = Meeting(
+                title=title, start_time=now_time, end_time=end_time,
+                location=location, description=description,
+                event_type=EventCategory.BILL.value, pilot_type="duck",
+                provider="Bill & Payment 💳💰",
+                action_btn_text="💳 PAY BILL",
+                action_url=maps_url, theme_name="Mint Green", is_travel=False,
+                classroom=classroom, teacher=teacher, outfit="banker"
+            )
         else:  # GENERAL
             default_pilot_id = special_pilot or cls._get_default_pilot()
             m = Meeting(
@@ -601,6 +640,10 @@ class EventClassifier:
             "health": ["zen_duck"],
             "work": ["work"],
             "concert": ["concert"],
+            "bill": ["bill"],
+            "bills": ["bill"],
+            "rent": ["bill"],
+            "affitto": ["bill"],
             "general": ["general"],
         }
 
@@ -827,6 +870,15 @@ class EventClassifier:
             if cls._matches_kw(kw, core_blob) or cls._matches_kw(kw, cleaned_search_blob):
                 return cls._build_meeting(
                     EventCategory.CONCERT, title=title, location=location, description=description,
+                    start_time=start_time, end_time=end_time, classroom=classroom, teacher=teacher,
+                    search_blob=search_blob, active_url=active_url
+                )
+
+        # Check Bills / Rent / Affitto / Payments
+        for kw in keywords_dict.get("bill", []):
+            if cls._matches_kw(kw, core_blob) or cls._matches_kw(kw, cleaned_search_blob):
+                return cls._build_meeting(
+                    EventCategory.BILL, title=title, location=location, description=description,
                     start_time=start_time, end_time=end_time, classroom=classroom, teacher=teacher,
                     search_blob=search_blob, active_url=active_url
                 )

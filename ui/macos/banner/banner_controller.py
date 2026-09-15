@@ -239,6 +239,31 @@ class QuakPitFlyingBanner(AppKit.NSObject):
             logger.error(f"Error marking arrived: {e}")
         self.dismiss()
 
+    def trigger_mark_paid(self) -> None:
+        try:
+            from core.services.reminder_engine import reminder_engine
+            from core.services.state_store import banner_history_store
+            from core.domain.models import Meeting
+            if isinstance(self.meeting_data, Meeting):
+                m_id = self.meeting_data.id
+            else:
+                m_id = str(self.meeting_data.get("id") or self.meeting_data.get("uid") or "")
+                if not m_id:
+                    m_title = self.meeting_data.get("title", "")
+                    m_start = self.meeting_data.get("start_time")
+                    time_str = m_start.strftime("%Y%m%d%H%M") if hasattr(m_start, "strftime") else "000000000000"
+                    m_id = f"{m_title}_{time_str}"
+            reminder_engine.mark_bill_paid(m_id)
+            banner_history_store.record_action(m_id, "bill_paid")
+            try:
+                from core.services.event_bus import event_bus
+                event_bus.publish("MARK_PAID", meeting_id=m_id)
+            except Exception:
+                pass
+        except Exception as e:
+            logger.error(f"Error marking bill paid: {e}")
+        self.dismiss()
+
     def trigger_snooze(self, duration_seconds: int = None) -> None:
         m_id = str(self.meeting_data.get("id") or self.meeting_data.get("uid") or "")
         try:

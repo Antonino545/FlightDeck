@@ -56,6 +56,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "agenda_join_button": "🚀 Join Flight",
         "agenda_maps_button": "🗺️ Directions",
         "agenda_earlier_today": "🏁 EARLIER TODAY",
+        "agenda_all_day": "All Day",
 
         # Hangar Tab
         "hangar_title": "Pilot Hangar",
@@ -406,6 +407,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "cat_work_desc": "Shifts, client meetings, standups, sprint reviews & office tasks.",
         "cat_concert_title": "🎸 Concerts, Shows & Live Music",
         "cat_concert_desc": "Live music, gigs, festivals, arena tours & theater tickets.",
+        "cat_bill_title": "💳 Bills, Rent & Payments",
+        "cat_bill_desc": "Rent, utilities, subscriptions, invoices, taxes & recurring dues.",
         "cat_general_title": "⏰ General Meetings & Reminders",
         "cat_general_desc": "Video conferences (Meet, Zoom, Teams) & alerts.",
         "cal_category_mapping": "Category Mapping",
@@ -418,7 +421,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "cal_cat_health": "🌸 Wellness & Health",
         "cal_cat_work": "💼 Work & Office",
         "cal_cat_concert": "🎸 Concert & Live",
+        "cal_cat_bill": "💳 Bills & Rent",
         "cal_cat_general": "⏰ General",
+        "banner_mark_paid": "✅ Mark Paid",
+        "banner_already_paid": "✅ Paid",
+        "banner_pay_now": "💳 Pay Now",
+        "settings_bill_reminders_title": "💳 Recurring Bill & Rent Reminders",
+        "settings_bill_reminders_desc": "Repeat notifications for unpaid bills and rent until marked paid.",
+        "settings_bill_interval_label": "Reminder Frequency:",
     },
 
     "it": {
@@ -465,6 +475,7 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "agenda_join_button": "🚀 Entra nel Volo",
         "agenda_maps_button": "🗺️ Indicazioni Mappe",
         "agenda_earlier_today": "🏁 VOLI PRECEDENTI",
+        "agenda_all_day": "Tutto il giorno",
 
         # Hangar Tab
         "hangar_title": "Hangar Piloti",
@@ -815,6 +826,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "cat_work_desc": "Turni, riunioni con clienti, standup, sprint review e ufficio.",
         "cat_concert_title": "🎸 Concerti, Spettacoli & Musica dal Vivo",
         "cat_concert_desc": "Musica dal vivo, festival, tour nei palasport, teatri e biglietti.",
+        "cat_bill_title": "💳 Bollette, Affitto & Pagamenti",
+        "cat_bill_desc": "Affitto, bollette, abbonamenti, fatture, tasse e scadenze.",
         "cat_general_title": "⏰ Riunioni Generali & Promemoria",
         "cat_general_desc": "Videoconferenze (Meet, Zoom, Teams) e promemoria.",
         "cal_category_mapping": "Mappatura Categoria",
@@ -827,7 +840,14 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "cal_cat_health": "🌸 Benessere & Terapia",
         "cal_cat_work": "💼 Lavoro & Ufficio",
         "cal_cat_concert": "🎸 Concerti & Live",
+        "cal_cat_bill": "💳 Bollette & Affitto",
         "cal_cat_general": "⏰ Generale",
+        "banner_mark_paid": "✅ Segna Pagato",
+        "banner_already_paid": "✅ Pagato",
+        "banner_pay_now": "💳 Paga Ora",
+        "settings_bill_reminders_title": "💳 Promemoria Ricorrenti Bollette & Affitto",
+        "settings_bill_reminders_desc": "Ripeti le notifiche per bollette e affitto fino a quando non vengono pagate.",
+        "settings_bill_interval_label": "Frequenza Promemoria:",
     }
 }
 
@@ -949,14 +969,15 @@ def get_active_language(forced_lang: Optional[str] = None) -> str:
     return detect_system_language()
 
 
-def t(key: str, lang: Optional[str] = None, **kwargs) -> str:
+def t(key: str, lang: Optional[str] = None, default: Optional[str] = None, **kwargs) -> str:
     """Translates a key into the active language with optional parameter interpolation."""
     active_lang = lang or get_active_language()
     dict_for_lang = TRANSLATIONS.get(active_lang) or TRANSLATIONS["en"]
 
+    fallback = default if default is not None else key
     template = dict_for_lang.get(key)
     if template is None:
-        template = TRANSLATIONS["en"].get(key, key)
+        template = TRANSLATIONS["en"].get(key, fallback)
 
     if kwargs:
         try:
