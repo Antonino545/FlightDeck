@@ -292,6 +292,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "agenda_concluded": "Completed",
         "agenda_cancelled_badge": "Cancelled",
         "agenda_cancelled": "Cancelled",
+        "agenda_paid_badge": "Paid",
+        "agenda_mark_paid": "Mark Paid",
 
         # Settings Card 3: Calendars
         "settings_calendars_title": "📅 Included System Calendars",
@@ -711,6 +713,8 @@ TRANSLATIONS: Dict[str, Dict[str, str]] = {
         "agenda_concluded": "Completato",
         "agenda_cancelled_badge": "Annullato",
         "agenda_cancelled": "Annullato",
+        "agenda_paid_badge": "Pagato",
+        "agenda_mark_paid": "Segna Pagato",
 
         # Settings Card 3: Calendars
         "settings_calendars_title": "📅 Calendari di Sistema Inclusi",

@@ -67,7 +67,15 @@ ENGLISH_KEYWORDS: Dict[str, List[str]] = {
     "bill": [
         "rent", "bill", "bills", "invoice", "invoices", "payment", "payments",
         "pay", "subscription", "subscriptions", "mortgage", "tax", "taxes",
-        "insurance", "due date", "utility", "utilities", "internet bill"
+        "insurance", "due date", "utility", "utilities", "internet bill",
+        "property tax", "water bill", "electric bill", "gas bill", "phone bill",
+        "telecom", "membership fee", "dues", "tuition", "credit card bill",
+        "autopay", "auto pay", "direct debit", "standing order",
+        "netflix", "spotify", "disney+", "hulu", "amazon prime",
+        "apple music", "youtube premium", "aws invoice", "cloud invoice",
+        "hosting fee", "domain renewal", "gym membership", "hoa fee",
+        "car insurance", "health insurance", "life insurance",
+        "student loan", "car payment", "lease payment"
     ]
 }
 
@@ -127,7 +135,18 @@ ITALIAN_KEYWORDS: Dict[str, List[str]] = {
         "affitto", "affitti", "bolletta", "bollette", "fattura", "fatture",
         "pagamento", "pagamenti", "pagare", "abbonamento", "abbonamenti",
         "mutuo", "tassa", "tasse", "condominio", "assicurazione", "rata", "rate",
-        "scadenza", "scadenze", "enel", "luce", "gas", "bolletta luce", "bolletta gas"
+        "scadenza", "scadenze", "enel", "luce", "gas", "bolletta luce", "bolletta gas",
+        "pagopa", "f24", "telepass", "tari", "imu", "tasi", "bollo auto", "canone rai",
+        "tim", "vodafone", "windtre", "wind tre", "fastweb", "iliad",
+        "illumia", "a2a", "eni plenitude", "plenitude", "eni",
+        "servizio elettrico", "sorgenia", "hera", "iren", "edison",
+        "spesa condominiale", "spese condominiali", "quota associativa",
+        "quota palestra", "retta", "retta scolastica",
+        "tassa universitaria", "tasse universitarie",
+        "netflix", "spotify", "amazon prime", "disney+",
+        "rc auto", "assicurazione auto", "assicurazione casa",
+        "rid bancario", "addebito diretto", "domiciliazione",
+        "prestito", "finanziamento", "amex", "carta di credito"
     ]
 }
 

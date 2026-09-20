@@ -31,6 +31,59 @@ MEETING_PATTERNS = [
     (r"https://app\.serenis\.it/join/[0-9a-zA-Z_-]+", "Serenis 🛋️", "zen_duck", "🚀 JOIN SESSION")
 ]
 
+# Payment URL patterns: (regex, provider_label, btn_text)
+PAYMENT_PATTERNS = [
+    (r"https?://(?:www\.)?paypal\.(?:me|com)/[^\s]+", "PayPal 💳", "💳 PAY WITH PAYPAL"),
+    (r"https?://(?:www\.)?pagopa\.gov\.it/[^\s]*", "PagoPA 🏛️", "💳 PAGA CON PAGOPA"),
+    (r"https?://(?:checkout\.)?pagopa\.it/[^\s]*", "PagoPA 🏛️", "💳 PAGA CON PAGOPA"),
+    (r"https?://(?:www\.)?satispay\.com/[^\s]*", "Satispay 🔴", "💳 PAY WITH SATISPAY"),
+    (r"https?://(?:checkout|invoice|pay)\.stripe\.com/[^\s]+", "Stripe 💳", "💳 PAY NOW"),
+    (r"https?://(?:www\.)?revolut\.me/[^\s]+", "Revolut 💜", "💳 PAY WITH REVOLUT"),
+    (r"https?://(?:www\.)?postepay\.poste\.it/[^\s]*", "PostePay 🟡", "💳 PAGA CON POSTEPAY"),
+    (r"https?://(?:www\.)?sumup\.com/[^\s]*", "SumUp 💳", "💳 PAY NOW"),
+]
+
+# Bill provider recognition: (keyword_pattern, provider_label)
+BILL_PROVIDER_PATTERNS = [
+    (r"\bpagopa\b", "PagoPA 🏛️"),
+    (r"\bf24\b", "F24 📋"),
+    (r"\btelepass\b", "Telepass 🚗"),
+    (r"\b(?:tari|imu|tasi)\b", "Municipal Tax 🏛️"),
+    (r"\bbollo\s*auto\b", "Bollo Auto 🚗"),
+    (r"\bcanone\s*rai\b", "Canone RAI 📺"),
+    (r"\b(?:tim|vodafone|windtre|wind\s*tre|fastweb|iliad)\b", "Telecom 📱"),
+    (r"\b(?:enel|eni|plenitude|a2a|illumia|sorgenia|hera|iren|edison|servizio\s*elettrico)\b", "Energy ⚡"),
+    (r"\b(?:netflix|spotify|disney\+?|hulu|amazon\s*prime|youtube\s*premium|apple\s*music)\b", "Streaming 🎬"),
+    (r"\b(?:aws\s*invoice|cloud\s*invoice|hosting\s*fee|domain\s*renewal)\b", "Cloud & Hosting ☁️"),
+    (r"\b(?:condomini[oa]|spese?\s*condominial[ei])\b", "Condominium 🏢"),
+    (r"\b(?:mutuo|mortgage)\b", "Mortgage 🏠"),
+    (r"\b(?:assicurazion[ei]|insurance|rc\s*auto)\b", "Insurance 🛡️"),
+    (r"\b(?:tassa\s*universitar|tasse\s*universitar|tuition|retta)\b", "Tuition 🎓"),
+    (r"\b(?:amex|carta\s*di\s*credito|credit\s*card)\b", "Credit Card 💳"),
+]
+
+
+def extract_payment_url(text: str) -> Optional[tuple]:
+    """Extract a payment URL from text. Returns (url, provider_label, btn_text) or None."""
+    if not text:
+        return None
+    for pat, provider, btn in PAYMENT_PATTERNS:
+        m = re.search(pat, text, re.IGNORECASE)
+        if m:
+            return (m.group(0), provider, btn)
+    return None
+
+
+def detect_bill_provider(text: str) -> Optional[str]:
+    """Detect a specific bill provider from text. Returns provider label or None."""
+    if not text:
+        return None
+    text_lower = text.lower()
+    for pat, label in BILL_PROVIDER_PATTERNS:
+        if re.search(pat, text_lower):
+            return label
+    return None
+
 
 @dataclass
 class ClassificationContext:
@@ -330,6 +383,49 @@ class QuickSyncSquirrelRule(ClassificationRule):
         return None
 
 
+class BillClassificationRule(ClassificationRule):
+    """Enhanced bill classification with provider recognition and payment URL detection."""
+    name = "bill_classification"
+
+    def match(self, ctx: ClassificationContext, classifier_cls: Any) -> Optional[Meeting]:
+        if not (classifier_cls.category_matches("bill", ctx.core_blob, ctx.keywords_dict) or
+                classifier_cls.category_matches("bill", ctx.cleaned_search_blob, ctx.keywords_dict)):
+            return None
+
+        # Detect specific provider from title/description
+        combined_text = f"{ctx.title} {ctx.description} {ctx.location}"
+        provider_label = detect_bill_provider(combined_text)
+
+        # Detect payment URL in description/location/raw_blob
+        payment_info = extract_payment_url(ctx.raw_blob)
+
+        if payment_info or provider_label:
+            pay_url = payment_info[0] if payment_info else None
+            pay_btn = payment_info[2] if payment_info else "💳 PAY BILL"
+            pay_provider = payment_info[1] if payment_info else None
+            # Use specific provider or payment provider or generic
+            final_provider = provider_label or pay_provider or "Bill & Payment 💳💰"
+
+            m = classifier_cls._build_meeting(
+                EventCategory.BILL, title=ctx.title, location=ctx.location, description=ctx.description,
+                start_time=ctx.start_time, end_time=ctx.end_time, classroom=ctx.classroom, teacher=ctx.teacher,
+                search_blob=ctx.search_blob, active_url=pay_url or ctx.active_url
+            )
+            # Override provider and button if we have specific info
+            m.provider = final_provider
+            if pay_url:
+                m.action_url = pay_url
+                m.action_btn_text = pay_btn
+            return m
+
+        # Default: use standard BILL category theme via _build_meeting
+        return classifier_cls._build_meeting(
+            EventCategory.BILL, title=ctx.title, location=ctx.location, description=ctx.description,
+            start_time=ctx.start_time, end_time=ctx.end_time, classroom=ctx.classroom, teacher=ctx.teacher,
+            search_blob=ctx.search_blob, active_url=ctx.active_url
+        )
+
+
 class GenericPhysicalLocationRule(ClassificationRule):
     name = "generic_physical_location"
 
@@ -357,7 +453,7 @@ CLASSIFICATION_PIPELINE: List[ClassificationRule] = [
     SimpleCategoryKeywordRule("gym", EventCategory.SPORT),
     SimpleCategoryKeywordRule("work", EventCategory.WORK),
     SimpleCategoryKeywordRule("concert", EventCategory.CONCERT),
-    SimpleCategoryKeywordRule("bill", EventCategory.BILL),
+    BillClassificationRule(),
     SimpleCategoryKeywordRule("driver", EventCategory.IN_PERSON),
     SimpleCategoryKeywordRule("zen_duck", EventCategory.HEALTH),
     SpecialMissionPlatypusRule(),

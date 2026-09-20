@@ -42,9 +42,9 @@ class ReminderEngine:
         self.notified_stage_keys.add(key)
         self._state_store.add(key)
 
-    def mark_arrived(self, meeting_id: str) -> None:
+    def mark_arrived(self, meeting_id: str, reason: str = "manual") -> None:
         """Marks meeting as arrived, suppressing all remaining reminder stages for it."""
-        arrival_service.mark_arrived(meeting_id)
+        arrival_service.mark_arrived(meeting_id, reason=reason)
         # Suppress all future keys for this meeting
         for s in range(0, 60):
             self._add_notified_key(f"{meeting_id}_stage_{s}")
@@ -56,7 +56,13 @@ class ReminderEngine:
         today_str = self.clock.now().astimezone().strftime("%Y-%m-%d")
         self._add_notified_key(f"{meeting_id}_paid")
         self._add_notified_key(f"{meeting_id}_{today_str}_paid")
-        self.mark_arrived(meeting_id)
+        self.mark_arrived(meeting_id, reason="paid")
+        # Persist to SQLite for durability across restarts
+        try:
+            from core.services.database_service import database_service
+            database_service.record_bill_paid(meeting_id)
+        except Exception:
+            pass
         logger.info(f"Marked bill as paid, suppressing future reminders: {meeting_id}")
 
     def is_bill_paid(self, meeting_id: str, today_str: Optional[str] = None) -> bool:
@@ -64,7 +70,14 @@ class ReminderEngine:
         if f"{meeting_id}_paid" in self.notified_stage_keys:
             return True
         date_str = today_str or self.clock.now().astimezone().strftime("%Y-%m-%d")
-        return f"{meeting_id}_{date_str}_paid" in self.notified_stage_keys
+        if f"{meeting_id}_{date_str}_paid" in self.notified_stage_keys:
+            return True
+        # Fallback: check SQLite persistence
+        try:
+            from core.services.database_service import database_service
+            return database_service.is_bill_paid(meeting_id)
+        except Exception:
+            return False
 
     def reset_state(self) -> None:
         """Clear fired notifications cache (useful for testing or daily reset)."""

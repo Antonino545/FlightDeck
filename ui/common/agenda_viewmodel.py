@@ -54,6 +54,8 @@ class AgendaEventVM:
     travel_time_minutes: Optional[int] = None
     departure_time_str: Optional[str] = None
     is_all_day: bool = False
+    is_bill: bool = False
+    is_paid: bool = False
 
     @property
     def has_action(self) -> bool:
@@ -160,6 +162,20 @@ class AgendaViewModel:
         except Exception:
             pass
 
+        # Bill detection and paid status
+        _cat = str(get_val("category", "") or get_val("event_type", "") or "").lower()
+        is_bill = _cat == "bill"
+        is_paid = False
+        if is_bill:
+            try:
+                from core.services.reminder_engine import reminder_engine
+                is_paid = reminder_engine.is_bill_paid(uid)
+            except Exception:
+                pass
+            # Also check arrival reason
+            if is_arr and "paid" in arr_reason:
+                is_paid = True
+
         # Action URL resolution (online meeting or maps navigation fallback)
         meeting_url = get_val("meeting_url")
         action_url = get_val("action_url") or meeting_url
@@ -247,7 +263,10 @@ class AgendaViewModel:
         is_urgent = False
         countdown_text = ""
 
-        if is_arr:
+        if is_bill and is_paid:
+            badge_text = f"✅ {t('agenda_paid_badge', default='Paid')}"
+            badge_color = "#a6e3a1"
+        elif is_arr:
             if "call" in arr_reason:
                 app_name = arr_reason.split(":", 1)[1] if ":" in arr_reason else ""
                 badge_text = f"🟢 In {app_name}" if app_name and app_name != "manual" else f"🟢 {t('agenda_in_call_badge', default='In Call')}"
@@ -331,7 +350,9 @@ class AgendaViewModel:
             location_name=loc,
             travel_time_minutes=travel_min,
             departure_time_str=dep_str,
-            is_all_day=is_all_day
+            is_all_day=is_all_day,
+            is_bill=is_bill,
+            is_paid=is_paid
         )
 
     @staticmethod

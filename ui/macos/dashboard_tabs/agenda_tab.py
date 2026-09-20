@@ -296,6 +296,24 @@ class AgendaTabController(AppKit.NSObject):
             copy_btn.setTag_(idx)
             card.addSubview_(copy_btn)
 
+        # Bill "Mark as Paid" button
+        if vm.is_bill and not vm.is_paid:
+            paid_x = 10
+            paid_btn = Theme.create_button(
+                AppKit.NSMakeRect(paid_x, h - 46, 140, 34),
+                title=f"✅ {t('agenda_mark_paid', default='Mark Paid')}",
+                bg_color=Theme.GREEN,
+                text_color=Theme.CRUST,
+                border_color=None,
+                corner_radius=8.0,
+                font_size=12.0,
+                bold=True
+            )
+            paid_btn.setTarget_(self)
+            paid_btn.setAction_("onMarkBillPaid:")
+            paid_btn.setTag_(idx)
+            card.addSubview_(paid_btn)
+
         return card
 
     @objc.python_method
@@ -375,6 +393,23 @@ class AgendaTabController(AppKit.NSObject):
             copy_btn.setTag_(idx)
             card.addSubview_(copy_btn)
 
+        # Bill "Mark as Paid" button
+        if vm.is_bill and not vm.is_paid:
+            paid_btn = Theme.create_button(
+                AppKit.NSMakeRect(62, 20, 130, 34),
+                title=f"✅ {t('agenda_mark_paid', default='Mark Paid')}",
+                bg_color=Theme.GREEN,
+                text_color=Theme.CRUST,
+                border_color=None,
+                corner_radius=8.0,
+                font_size=11.5,
+                bold=True
+            )
+            paid_btn.setTarget_(self)
+            paid_btn.setAction_("onMarkBillPaid:")
+            paid_btn.setTag_(idx)
+            card.addSubview_(paid_btn)
+
         return card
 
     def onOpenMeetingUrl_(self, sender):
@@ -399,3 +434,31 @@ class AgendaTabController(AppKit.NSObject):
                     time.sleep(1.5)
                     AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(lambda: sender.setTitle_("📋 " + t("copy")))
                 threading.Thread(target=reset, daemon=True).start()
+
+    def onMarkBillPaid_(self, sender):
+        idx = sender.tag()
+        target_list = self._rendered_vms if hasattr(self, "_rendered_vms") and self._rendered_vms else self.vms
+        if 0 <= idx < len(target_list):
+            vm = target_list[idx]
+            uid = vm.uid
+            try:
+                from core.services.reminder_engine import reminder_engine
+                reminder_engine.mark_bill_paid(uid)
+            except Exception:
+                pass
+            try:
+                from core.services.event_bus import event_bus
+                event_bus.publish("MARK_PAID", meeting_id=uid)
+            except Exception:
+                pass
+            # Visual feedback
+            sender.setTitle_(f"✅ {t('agenda_paid_badge', default='Paid')}")
+            sender.setEnabled_(False)
+            # Refresh agenda after short delay
+            def _refresh():
+                time.sleep(0.5)
+                if self.dashboard_controller and hasattr(self.dashboard_controller, "invalidate_cache"):
+                    AppKit.NSOperationQueue.mainQueue().addOperationWithBlock_(
+                        lambda: self.dashboard_controller.invalidate_cache()
+                    )
+            threading.Thread(target=_refresh, daemon=True).start()
