@@ -20,6 +20,7 @@ class TestEventClassifier(unittest.TestCase):
                 "in_person": {"animal": "duck", "outfit": "racer"},
                 "health": {"animal": "duck", "outfit": "zen"},
                 "work": {"animal": "penguin", "outfit": "agent"},
+                "bill": {"animal": "duck", "outfit": "banker"},
                 "concert": {"animal": "fox", "outfit": "aviator"},
                 "general": {"animal": "duck", "outfit": "aviator"}
             }
@@ -452,6 +453,203 @@ class TestEventClassifier(unittest.TestCase):
             self.assertEqual(m_meet_work.meeting_url, "https://meet.google.com/xyz-abcd-efg")
             self.assertIn("GOOGLE MEET", m_meet_work.action_btn_text)
 
+    def test_bill_classification(self):
+        # 1. By keyword: rent / apartment
+        m_rent = self.classifier.classify(title="Monthly Rent Payment")
+        self.assertEqual(m_rent.event_type, EventCategory.BILL.value)
+        self.assertEqual(m_rent.outfit, "banker")
+        self.assertEqual(m_rent.action_btn_text, "💳 PAY BILL")
+
+        # 2. In Italian: affitto
+        m_affitto = self.classifier.classify(title="Pagamento affitto casa")
+        self.assertEqual(m_affitto.event_type, EventCategory.BILL.value)
+        self.assertEqual(m_affitto.outfit, "banker")
+
+        # 3. Italian utility bills: bolletta luce e gas
+        m_bolletta = self.classifier.classify(title="Scadenza bolletta luce e gas")
+        self.assertEqual(m_bolletta.event_type, EventCategory.BILL.value)
+
+        # 4. Invoices and taxes
+        m_inv = self.classifier.classify(title="Invoice #1042 due")
+        self.assertEqual(m_inv.event_type, EventCategory.BILL.value)
+
+        m_f24 = self.classifier.classify(title="Scadenza pagamento F24")
+        self.assertEqual(m_f24.event_type, EventCategory.BILL.value)
+
+        # 5. Direct calendar mapping to bill
+        with unittest.mock.patch("core.services.config_service.config.get", side_effect=lambda k, d=None: {
+            "calendar_category_map": {"Finance & Bills": "bill"},
+            "mascot_customization": {
+                "bill": {"animal": "duck", "outfit": "banker"},
+                "general": {"animal": "duck", "outfit": "aviator"}
+            }
+        }.get(k, d)):
+            m_cal = self.classifier.classify(title="Generic Payment Note", calendar_name="Finance & Bills")
+            self.assertEqual(m_cal.event_type, EventCategory.BILL.value)
+            self.assertEqual(m_cal.outfit, "banker")
+
+
+class TestCategoryMatches(unittest.TestCase):
+    """Tests for the precompiled per-category regex matching infrastructure."""
+
+    def test_basic_match(self):
+        """category_matches finds a keyword in text."""
+        from core.domain.classifier import category_matches, DEFAULT_KEYWORDS
+        self.assertTrue(category_matches("chef", "going to dinner tonight", DEFAULT_KEYWORDS))
+        self.assertTrue(category_matches("captain", "flight to london", DEFAULT_KEYWORDS))
+        self.assertFalse(category_matches("chef", "team standup meeting", DEFAULT_KEYWORDS))
+
+    def test_location_suffix_guard(self):
+        """Keywords followed by location suffixes (Room, Hall, Building) do NOT match."""
+        from core.domain.classifier import category_matches, DEFAULT_KEYWORDS
+        # "Training Room" should NOT trigger the gym/sport category
+        self.assertFalse(category_matches("gym", "training room booking", DEFAULT_KEYWORDS))
+        # But "training session" should match
+        self.assertTrue(category_matches("gym", "training session at noon", DEFAULT_KEYWORDS))
+        # "Exam Hall" should NOT trigger exam (the suffix "hall" is guarded)
+        self.assertFalse(category_matches("exam", "exam hall setup", DEFAULT_KEYWORDS))
+
+    def test_case_insensitive(self):
+        """Matches are case-insensitive."""
+        from core.domain.classifier import category_matches, DEFAULT_KEYWORDS
+        self.assertTrue(category_matches("chef", "DINNER with Team", DEFAULT_KEYWORDS))
+        self.assertTrue(category_matches("captain", "FLIGHT TO ROME", DEFAULT_KEYWORDS))
+
+    def test_custom_keywords_merged(self):
+        """When custom keywords are merged, the new list matches correctly."""
+        from core.domain.classifier import category_matches, DEFAULT_KEYWORDS
+        custom_dict = dict(DEFAULT_KEYWORDS)
+        # Add a custom keyword "pomodoro" to chef
+        custom_dict["chef"] = list(DEFAULT_KEYWORDS["chef"]) + ["pomodoro"]
+        self.assertTrue(category_matches("chef", "pomodoro technique session", custom_dict))
+        # Original keywords still work
+        self.assertTrue(category_matches("chef", "dinner at 8", custom_dict))
+
+    def test_empty_category(self):
+        """category_matches returns False for an unknown or empty category."""
+        from core.domain.classifier import category_matches, DEFAULT_KEYWORDS
+        self.assertFalse(category_matches("nonexistent_cat", "dinner tonight", DEFAULT_KEYWORDS))
+
+    def test_multi_word_keyword(self):
+        """Multi-word keywords like 'self-study' and 'bike ride' are matched as phrases."""
+        from core.domain.classifier import category_matches, DEFAULT_KEYWORDS
+        self.assertTrue(category_matches("gym", "bike ride in the park", DEFAULT_KEYWORDS))
+        self.assertTrue(category_matches("owl", "self-study session", DEFAULT_KEYWORDS))
+
+    def test_default_regexes_prebuilt(self):
+        """The default category regexes are pre-built at import time."""
+        from core.domain.classifier import _DEFAULT_CATEGORY_REGEXES, DEFAULT_KEYWORDS
+        for cat_key in DEFAULT_KEYWORDS:
+            self.assertIn(cat_key, _DEFAULT_CATEGORY_REGEXES,
+                          f"Missing prebuilt regex for category '{cat_key}'")
+
+
+class TestClassificationPipeline(unittest.TestCase):
+    """Tests for the ClassificationRule pipeline structure and context."""
+
+    def test_pipeline_order_and_rules_exist(self):
+        from core.domain.classifier import CLASSIFICATION_PIPELINE
+        rule_names = [rule.name for rule in CLASSIFICATION_PIPELINE]
+        expected_prefix = [
+            "calendar_mapping",
+            "video_meeting_url",
+            "idiom_override",
+            "empty_core_title_fallback",
+            "prefix",
+            "structured_food",
+            "food_starts_with",
+            "travel",
+            "academic"
+        ]
+        for idx, expected in enumerate(expected_prefix):
+            self.assertEqual(rule_names[idx], expected)
+        self.assertIn("generic_physical_location", rule_names)
+
+    def test_direct_rule_match(self):
+        from core.domain.classifier import ClassificationContext, FoodStartsWithRule, EventClassifier, DEFAULT_KEYWORDS
+        ctx = ClassificationContext(
+            title="Lunch with team",
+            location="",
+            description="",
+            meeting_url=None,
+            start_time=None,
+            end_time=None,
+            calendar_name=None,
+            keywords_dict=DEFAULT_KEYWORDS,
+            classroom=None,
+            teacher=None,
+            raw_blob="lunch with team",
+            search_blob="lunch with team",
+            active_url=None,
+            clean_title="Lunch with team",
+            core_title="Lunch with team",
+            last_stripped_cat=None,
+            cleaned_search_blob="lunch with team",
+            core_blob="lunch with team",
+            has_structured_food=False
+        )
+        rule = FoodStartsWithRule()
+        meeting = rule.match(ctx, EventClassifier)
+        self.assertIsNotNone(meeting)
+        self.assertEqual(meeting.event_type, "food")
+
+
+class TestMascotCustomizer(unittest.TestCase):
+    """Direct tests for MascotCustomizer service class."""
+
+    def test_default_pilot(self):
+        from core.domain.mascot_customizer import MascotCustomizer
+        self.assertEqual(MascotCustomizer.get_default_pilot(), "duck")
+
+    def test_apply_customization_direct(self):
+        from core.domain.mascot_customizer import MascotCustomizer
+        from core.domain.models import Meeting
+        m = Meeting(title="Math Exam", event_type="exam")
+        customized = MascotCustomizer.apply_customization(m)
+        self.assertEqual(customized.animal, "owl")
+        self.assertEqual(customized.outfit, "student")
 
 
 
+
+class TestConfigInjection(unittest.TestCase):
+    """Tests for constructor injection of config and narrow exception handling."""
+
+    def test_mascot_customizer_injected_config(self):
+        from core.domain.mascot_customizer import MascotCustomizer
+        from core.domain.models import Meeting
+        mock_cfg = {
+            "mascot_customization": {"exam": {"animal": "fox", "outfit": "agent"}},
+            "default_pilot": "penguin"
+        }
+        customizer = MascotCustomizer(config_provider=mock_cfg)
+        self.assertEqual(customizer.get_default_pilot(config_provider=mock_cfg), "penguin")
+        m = Meeting(title="Test Exam", event_type="exam")
+        customized = customizer.customize(m)
+        self.assertEqual(customized.animal, "fox")
+        self.assertEqual(customized.outfit, "agent")
+
+    def test_event_classifier_injected_config(self):
+        from core.domain.classifier import EventClassifier
+        mock_cfg = {
+            "calendar_category_map": {"University": "exam"}
+        }
+        # Direct classmethod with config_provider arg
+        m_direct = EventClassifier.classify("Generic Session", calendar_name="University", config_provider=mock_cfg)
+        self.assertEqual(m_direct.event_type, "exam")
+        # Instance method with injected config_provider
+        classifier = EventClassifier(config_provider=mock_cfg)
+        m_inst = classifier.classify_event("Generic Session", calendar_name="University")
+        self.assertEqual(m_inst.event_type, "exam")
+
+
+class TestKeywordsData(unittest.TestCase):
+    """Tests for externalized bilingual keyword datasets."""
+
+    def test_bilingual_datasets_exported(self):
+        from core.domain.keywords_data import ENGLISH_KEYWORDS, ITALIAN_KEYWORDS, build_default_keywords
+        self.assertIn("dinner", ENGLISH_KEYWORDS["chef"])
+        self.assertIn("cena", ITALIAN_KEYWORDS["chef"])
+        merged = build_default_keywords()
+        self.assertIn("dinner", merged["chef"])
+        self.assertIn("cena", merged["chef"])

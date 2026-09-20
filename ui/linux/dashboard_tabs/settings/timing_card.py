@@ -8,6 +8,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 
 from core.services.config_service import config
+from core.services.event_bus import event_bus
+from core.services.language_service import t
+from ui.linux.animated_widgets import ToggleSwitch
 
 
 class TimingCardWidget(QFrame):
@@ -151,3 +154,87 @@ class TimingCardWidget(QFrame):
         tc_layout.addLayout(_build_stage_row("📹 Video Meetings", "Reminders for Zoom, Google Meet, Microsoft Teams, etc.", "meeting_reminder_stages", [20, 10, 5, 2, 0], "#cba6f7"))
         tc_layout.addLayout(_build_stage_row("📅 General Events", "Tasks, personal appointments, syncs, and routines.", "general_reminder_stages", [20, 10, 5, 2, 0], "#89b4fa"))
         tc_layout.addLayout(_build_stage_row("🚗 Travel & Trips", "Reminders ahead of calculated departure times for in-person destinations.", "travel_reminder_stages", [45, 30, 15, 5, 2, 0], "#fab387"))
+
+        div_bill = QFrame(self)
+        div_bill.setFrameShape(QFrame.Shape.HLine)
+        div_bill.setStyleSheet("color: #313244; background: #313244;")
+        div_bill.setFixedHeight(1)
+        tc_layout.addWidget(div_bill)
+
+        bill_box = QVBoxLayout()
+        bill_box.setSpacing(6)
+
+        bill_head_row = QHBoxLayout()
+        bill_head_row.setSpacing(10)
+
+        bill_text_box = QVBoxLayout()
+        bill_text_box.setSpacing(2)
+        b_t = QLabel(f"💳 {t('settings_bill_reminders_title', default='Recurring Bill & Rent Reminders')}", self)
+        b_t.setStyleSheet("font-size: 12.5px; font-weight: bold; color: #cdd6f4;")
+        b_s = QLabel(t('settings_bill_reminders_desc', default='Periodically remind until marked paid or actioned.'), self)
+        b_s.setStyleSheet("font-size: 11px; color: #a6adc8;")
+        bill_text_box.addWidget(b_t)
+        bill_text_box.addWidget(b_s)
+        bill_head_row.addLayout(bill_text_box, stretch=1)
+
+        bill_sw = ToggleSwitch(checked=bool(config.get("enable_bill_reminders", True)), parent=self)
+        bill_sw.setFixedSize(50, 26)
+        def _on_bill_toggled(checked):
+            config.set("enable_bill_reminders", checked)
+            try:
+                event_bus.publish("CONFIG_CHANGED", key="enable_bill_reminders", value=checked)
+            except Exception:
+                pass
+        bill_sw.toggled = _on_bill_toggled
+        bill_head_row.addWidget(bill_sw)
+        bill_box.addLayout(bill_head_row)
+
+        bill_interval_row = QHBoxLayout()
+        bill_interval_row.setSpacing(6)
+        bill_interval_opts = [(30, "30m"), (60, "1h"), (120, "2h"), (240, "4h")]
+        curr_int = int(config.get("bill_reminder_interval_minutes", 120))
+
+        self.bill_interval_buttons = []
+        for val, lbl in bill_interval_opts:
+            btn = QPushButton(lbl, self)
+            btn.setCheckable(True)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setChecked(val == curr_int)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background: #242438;
+                    color: #cdd6f4;
+                    border: 1px solid #45475a;
+                    border-radius: 7px;
+                    padding: 5px 12px;
+                    font-size: 11.5px;
+                    font-weight: 500;
+                }
+                QPushButton:hover {
+                    background: #313244;
+                    border-color: #a6e3a1;
+                }
+                QPushButton:checked {
+                    background: #a6e3a1;
+                    color: #11111b;
+                    font-weight: bold;
+                    border: 1px solid #a6e3a1;
+                }
+            """)
+            def _make_int_cb(target_val=val):
+                def _cb():
+                    config.set("bill_reminder_interval_minutes", target_val)
+                    try:
+                        event_bus.publish("CONFIG_CHANGED", key="bill_reminder_interval_minutes", value=target_val)
+                    except Exception:
+                        pass
+                    for b, v in self.bill_interval_buttons:
+                        b.setChecked(v == target_val)
+                return _cb
+            btn.clicked.connect(_make_int_cb(val))
+            self.bill_interval_buttons.append((btn, val))
+            bill_interval_row.addWidget(btn)
+
+        bill_interval_row.addStretch()
+        bill_box.addLayout(bill_interval_row)
+        tc_layout.addLayout(bill_box)

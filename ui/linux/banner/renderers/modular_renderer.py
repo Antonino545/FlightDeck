@@ -72,6 +72,8 @@ class QtModularRenderer(BaseQtPilotRenderer):
             p.setBrush(QColor(31, 51, 97))
         elif self.outfit == "student":
             p.setBrush(QColor(76, 56, 102))
+        elif self.outfit == "banker":
+            p.setBrush(QColor(31, 89, 61))
         else:
             p.setBrush(QColor(250, 240, 209))
         p.drawEllipse(QRectF(px - 44, py - 13, 76, 28))
@@ -92,6 +94,8 @@ class QtModularRenderer(BaseQtPilotRenderer):
             p.setBrush(QColor(245, 194, 231))
         elif self.outfit == "captain":
             p.setBrush(QColor(242, 199, 89))
+        elif self.outfit == "banker":
+            p.setBrush(QColor(245, 209, 71))
         else:
             p.setBrush(QColor(224, 51, 46))
         p.drawPath(stripe_path)
@@ -834,6 +838,10 @@ class QtModularRenderer(BaseQtPilotRenderer):
             p.setBrush(QColor(255, 217, 51))
             p.drawEllipse(QRectF(px - 3, py + 19, 2, 2))
 
+        elif self.outfit == "banker":
+            self._draw_banker_visor(p, px, py, tick)
+            self._draw_gold_coin(p, px, py, tick)
+
         else:
             p.setBrush(QColor(89, 64, 46))
             p.drawRect(QRectF(px - 8, py + 13, 18, 3))
@@ -1068,3 +1076,57 @@ class QtModularRenderer(BaseQtPilotRenderer):
         if "earpiece" in self.accessories:
             p.setBrush(QColor(38, 38, 46))
             p.drawEllipse(QRectF(px - 12, py + 10, 3, 3))
+        if "banker_visor" in self.accessories and self.outfit != "banker":
+            self._draw_banker_visor(p, px, py, tick)
+        if "gold_coin" in self.accessories and self.outfit != "banker":
+            self._draw_gold_coin(p, px, py, tick)
+
+    def _draw_banker_visor(self, p: QPainter, px: float, py: float, tick: int) -> None:
+        """Classic translucent emerald green banker's visor with dark trim and strap."""
+        hb_y = self._get_animal_bob(tick)
+        p.setPen(Qt.PenStyle.NoPen)
+        # 1. Dark leather strap wrapping head
+        p.setBrush(QColor(46, 36, 31))
+        p.drawRoundedRect(QRectF(px - 9, py + 14 + hb_y, 20, 4.5), 1.5, 1.5)
+
+        # 2. Golden buckle on strap
+        p.setBrush(QColor(245, 209, 71))
+        p.drawRect(QRectF(px - 8.5, py + 14.5 + hb_y, 2.5, 3.5))
+
+        # 3. Translucent emerald-green visor bill/brim jutting forward
+        p.setBrush(QColor(31, 199, 115, 209))
+        brim_path = QPainterPath()
+        brim_path.moveTo(px - 4, py + 15 + hb_y)
+        brim_path.cubicTo(px + 5, py + 16 + hb_y, px + 14, py + 14 + hb_y, px + 18, py + 11.5 + hb_y)
+        brim_path.lineTo(px + 16, py + 8.5 + hb_y)
+        brim_path.cubicTo(px + 10, py + 9.5 + hb_y, px + 3, py + 11.5 + hb_y, px - 3, py + 12.5 + hb_y)
+        brim_path.closeSubpath()
+        p.drawPath(brim_path)
+
+        # 4. Mint/gloss shine reflection along visor brim
+        p.setPen(QPen(QColor(179, 250, 209, 191), 1.0))
+        p.drawLine(QPointF(px, py + 14.5 + hb_y), QPointF(px + 16, py + 11 + hb_y))
+        p.setPen(Qt.PenStyle.NoPen)
+
+    def _draw_gold_coin(self, p: QPainter, px: float, py: float, tick: int) -> None:
+        """Sparkling gold coin emblem with subtle twinkle."""
+        hb_y = self._get_animal_bob(tick)
+        cx = px - 3.5
+        cy = py + 2.5 + hb_y
+
+        # 1. Outer golden coin disk
+        p.setPen(QPen(QColor(204, 153, 31), 0.8))
+        p.setBrush(QColor(245, 204, 56))
+        p.drawEllipse(QRectF(cx - 3.5, cy - 3.5, 7.0, 7.0))
+
+        # 2. Embossed Currency Symbol (mini $ bar)
+        p.setPen(QPen(QColor(148, 102, 20), 0.7))
+        p.drawLine(QPointF(cx, cy - 2.2), QPointF(cx, cy + 2.2))
+
+        # 3. Sparkle twinkle
+        twinkle = (tick % 30) < 8
+        if twinkle:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(255, 255, 255))
+            p.drawEllipse(QRectF(cx + 1.2, cy + 1.2, 1.5, 1.5))
+        p.setPen(Qt.PenStyle.NoPen)

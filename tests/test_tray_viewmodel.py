@@ -45,5 +45,29 @@ class TestTrayViewModelTransportMode(unittest.TestCase):
         info_bike = TrayViewModel.format_travel_info(10, dep, transport_mode="bicycling", lang="en")
         self.assertIn("🚲", info_bike)
 
+    def test_all_day_and_bill_excluded_from_status_bar_title(self):
+        now = datetime(2026, 8, 30, 10, 0, tzinfo=timezone.utc)
+
+        # 1. All-day event
+        all_day_m = {
+            "title": "Bank Holiday",
+            "start_time": datetime(2026, 8, 30, 0, 0, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 8, 30, 23, 59, tzinfo=timezone.utc),
+            "is_all_day": True
+        }
+        title_all_day = TrayViewModel.get_status_bar_title(all_day_m, now, mode="countdown", max_lookahead_min=180)
+        self.assertEqual(title_all_day, "🦆 FlightDeck")
+
+        # 2. Bill event
+        bill_m = {
+            "title": "Affitto",
+            "start_time": datetime(2026, 8, 30, 0, 0, tzinfo=timezone.utc),
+            "end_time": datetime(2026, 8, 30, 23, 59, tzinfo=timezone.utc),
+            "category": "bill"
+        }
+        title_bill = TrayViewModel.get_status_bar_title(bill_m, now, mode="countdown", max_lookahead_min=180)
+        self.assertEqual(title_bill, "🦆 FlightDeck")
+
+
 if __name__ == "__main__":
     unittest.main()

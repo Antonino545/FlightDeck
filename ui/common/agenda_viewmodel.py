@@ -53,6 +53,9 @@ class AgendaEventVM:
     location_name: Optional[str] = None
     travel_time_minutes: Optional[int] = None
     departure_time_str: Optional[str] = None
+    is_all_day: bool = False
+    is_bill: bool = False
+    is_paid: bool = False
 
     @property
     def has_action(self) -> bool:
@@ -125,10 +128,15 @@ class AgendaViewModel:
         if isinstance(dep_dt, datetime) and dep_dt.tzinfo is None:
             dep_dt = dep_dt.astimezone(timezone.utc)
 
+        is_all_day = bool(get_val("is_all_day", False) or get_val("category") == "bill" or get_val("event_type") == "bill")
+
         # Time formatting
         start_str = start_dt.astimezone().strftime("%H:%M") if isinstance(start_dt, datetime) else "--:--"
         end_str = end_dt.astimezone().strftime("%H:%M") if isinstance(end_dt, datetime) else ""
-        time_display = f"{start_str} - {end_str}" if end_str else start_str
+        if is_all_day:
+            time_display = t("agenda_all_day", default="All Day")
+        else:
+            time_display = f"{start_str} - {end_str}" if end_str else start_str
 
         # Pilot icon
         p_type = get_val("pilot_type", "duck")
@@ -153,6 +161,20 @@ class AgendaViewModel:
                 arr_reason = arrival_service.get_arrival_reason(uid) or "manual"
         except Exception:
             pass
+
+        # Bill detection and paid status
+        _cat = str(get_val("category", "") or get_val("event_type", "") or "").lower()
+        is_bill = _cat == "bill"
+        is_paid = False
+        if is_bill:
+            try:
+                from core.services.reminder_engine import reminder_engine
+                is_paid = reminder_engine.is_bill_paid(uid)
+            except Exception:
+                pass
+            # Also check arrival reason
+            if is_arr and "paid" in arr_reason:
+                is_paid = True
 
         # Action URL resolution (online meeting or maps navigation fallback)
         meeting_url = get_val("meeting_url")
@@ -241,7 +263,10 @@ class AgendaViewModel:
         is_urgent = False
         countdown_text = ""
 
-        if is_arr:
+        if is_bill and is_paid:
+            badge_text = f"✅ {t('agenda_paid_badge', default='Paid')}"
+            badge_color = "#a6e3a1"
+        elif is_arr:
             if "call" in arr_reason:
                 app_name = arr_reason.split(":", 1)[1] if ":" in arr_reason else ""
                 badge_text = f"🟢 In {app_name}" if app_name and app_name != "manual" else f"🟢 {t('agenda_in_call_badge', default='In Call')}"
@@ -275,7 +300,10 @@ class AgendaViewModel:
             badge_color = "#f9e2af"
 
         # Countdown calculation
-        if state in (EventState.COMPLETED, EventState.CANCELLED):
+        if is_all_day:
+            countdown_text = t("agenda_all_day", default="All Day")
+            is_urgent = False
+        elif state in (EventState.COMPLETED, EventState.CANCELLED):
             if not countdown_text:
                 countdown_text = t("agenda_concluded", default="Completed")
         elif start_dt:
@@ -321,7 +349,10 @@ class AgendaViewModel:
             classroom=classroom,
             location_name=loc,
             travel_time_minutes=travel_min,
-            departure_time_str=dep_str
+            departure_time_str=dep_str,
+            is_all_day=is_all_day,
+            is_bill=is_bill,
+            is_paid=is_paid
         )
 
     @staticmethod
@@ -385,8 +416,10 @@ class AgendaViewModel:
         if guidance and guidance.target_event:
             target_uid = str(getattr(guidance.target_event, "uid", None) or getattr(guidance.target_event, "id", None) or "")
 
-        # Look for explicitly active/arriving/time-to-leave events in active_candidates
+        # Look for explicitly active/arriving/time-to-leave events in active_candidates (excluding all-day/bills)
         for vm in active_candidates:
+            if vm.is_all_day:
+                continue
             if vm.state in (EventState.ACTIVE, EventState.TIME_TO_LEAVE, EventState.ARRIVING):
                 now_vm = vm
                 break
@@ -396,15 +429,19 @@ class AgendaViewModel:
 
         remaining_vms = [v for v in active_candidates if now_vm is None or v.uid != now_vm.uid]
 
-        # Determine NEXT event: first event chronologically that is UPCOMING or PREPARE
+        # Determine NEXT event: first event chronologically that is UPCOMING or PREPARE (excluding all-day/bills)
         next_vm: Optional[AgendaEventVM] = None
         for vm in remaining_vms:
+            if vm.is_all_day:
+                continue
             if vm.state in (EventState.UPCOMING, EventState.PREPARE):
                 next_vm = vm
                 break
 
         if not now_vm and not next_vm and remaining_vms:
-            next_vm = remaining_vms[0]
+            timed_remaining = [v for v in remaining_vms if not v.is_all_day]
+            if timed_remaining:
+                next_vm = timed_remaining[0]
 
         later_vms = [v for v in remaining_vms if next_vm is None or v.uid != next_vm.uid]
 

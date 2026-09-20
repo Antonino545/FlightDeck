@@ -61,6 +61,8 @@ class ModularPilotRenderer(BasePilotRenderer):
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.12, 0.20, 0.38, 1.0).set()
         elif self.outfit == "student":
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.30, 0.22, 0.40, 1.0).set()
+        elif self.outfit == "banker":
+            AppKit.NSColor.colorWithRed_green_blue_alpha_(0.12, 0.35, 0.24, 1.0).set()
         else:
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.98, 0.94, 0.82, 1.0).set()
         body.fill()
@@ -81,6 +83,8 @@ class ModularPilotRenderer(BasePilotRenderer):
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.96, 0.76, 0.91, 1.0).set()
         elif self.outfit == "captain":
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.95, 0.78, 0.35, 1.0).set()
+        elif self.outfit == "banker":
+            AppKit.NSColor.colorWithRed_green_blue_alpha_(0.96, 0.82, 0.28, 1.0).set()
         else:
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.88, 0.20, 0.18, 1.0).set()
         stripe.fill()
@@ -913,6 +917,10 @@ class ModularPilotRenderer(BasePilotRenderer):
             AppKit.NSColor.colorWithRed_green_blue_alpha_(1.0, 0.85, 0.20, 1.0).set()
             AppKit.NSBezierPath.bezierPathWithOvalInRect_(AppKit.NSMakeRect(px - 3, py + 19, 2, 2)).fill()
 
+        elif self.outfit == "banker":
+            self._draw_banker_visor(px, py, tick)
+            self._draw_gold_coin(px, py, tick)
+
         else:  # aviator
             # 🪖 OCCHIALONI DA AVIATORE CON CINGHIA
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.35, 0.25, 0.18, 1.0).set()
@@ -1242,3 +1250,77 @@ class ModularPilotRenderer(BasePilotRenderer):
         if "earpiece" in self.accessories:
             AppKit.NSColor.colorWithRed_green_blue_alpha_(0.15, 0.15, 0.18, 1.0).set()
             AppKit.NSBezierPath.bezierPathWithOvalInRect_(AppKit.NSMakeRect(px - 12, py + 10, 3, 3)).fill()
+        if "banker_visor" in self.accessories and self.outfit != "banker":
+            self._draw_banker_visor(px, py, tick)
+        if "gold_coin" in self.accessories and self.outfit != "banker":
+            self._draw_gold_coin(px, py, tick)
+
+    def _draw_banker_visor(self, px: float, py: float, tick: int) -> None:
+        """Classic translucent emerald green banker's visor with dark trim and strap."""
+        hb_y = self._get_animal_bob(tick)
+        # 1. Dark leather strap wrapping head
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.18, 0.14, 0.12, 1.0).set()
+        strap = AppKit.NSBezierPath.bezierPathWithRoundedRect_xRadius_yRadius_(
+            AppKit.NSMakeRect(px - 9, py + 14 + hb_y, 20, 4.5), 1.5, 1.5
+        )
+        strap.fill()
+
+        # 2. Golden buckle on strap
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.96, 0.82, 0.28, 1.0).set()
+        AppKit.NSBezierPath.bezierPathWithRect_(AppKit.NSMakeRect(px - 8.5, py + 14.5 + hb_y, 2.5, 3.5)).fill()
+
+        # 3. Translucent emerald-green visor bill/brim jutting forward
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.12, 0.78, 0.45, 0.82).set()
+        brim = AppKit.NSBezierPath.bezierPath()
+        brim.moveToPoint_(AppKit.NSMakePoint(px - 4, py + 15 + hb_y))
+        brim.curveToPoint_controlPoint1_controlPoint2_(
+            AppKit.NSMakePoint(px + 18, py + 11.5 + hb_y),
+            AppKit.NSMakePoint(px + 5, py + 16 + hb_y),
+            AppKit.NSMakePoint(px + 14, py + 14 + hb_y)
+        )
+        brim.lineToPoint_(AppKit.NSMakePoint(px + 16, py + 8.5 + hb_y))
+        brim.curveToPoint_controlPoint1_controlPoint2_(
+            AppKit.NSMakePoint(px - 3, py + 12.5 + hb_y),
+            AppKit.NSMakePoint(px + 10, py + 9.5 + hb_y),
+            AppKit.NSMakePoint(px + 3, py + 11.5 + hb_y)
+        )
+        brim.closePath()
+        brim.fill()
+
+        # 4. Mint/gloss shine reflection along visor brim
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.70, 0.98, 0.82, 0.75).set()
+        shine = AppKit.NSBezierPath.bezierPath()
+        shine.moveToPoint_(AppKit.NSMakePoint(px, py + 14.5 + hb_y))
+        shine.lineToPoint_(AppKit.NSMakePoint(px + 16, py + 11 + hb_y))
+        shine.setLineWidth_(1.0)
+        shine.stroke()
+
+    def _draw_gold_coin(self, px: float, py: float, tick: int) -> None:
+        """Sparkling gold coin emblem with subtle twinkle."""
+        hb_y = self._get_animal_bob(tick)
+        cx = px - 3.5
+        cy = py + 2.5 + hb_y
+
+        # 1. Outer golden coin disk
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.96, 0.80, 0.22, 1.0).set()
+        coin = AppKit.NSBezierPath.bezierPathWithOvalInRect_(AppKit.NSMakeRect(cx - 3.5, cy - 3.5, 7.0, 7.0))
+        coin.fill()
+
+        # 2. Coin rim
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.80, 0.60, 0.12, 1.0).set()
+        coin.setLineWidth_(0.8)
+        coin.stroke()
+
+        # 3. Embossed Currency Symbol (mini $ bar)
+        AppKit.NSColor.colorWithRed_green_blue_alpha_(0.58, 0.40, 0.08, 1.0).set()
+        s_bar = AppKit.NSBezierPath.bezierPath()
+        s_bar.moveToPoint_(AppKit.NSMakePoint(cx, cy - 2.2))
+        s_bar.lineToPoint_(AppKit.NSMakePoint(cx, cy + 2.2))
+        s_bar.setLineWidth_(0.7)
+        s_bar.stroke()
+
+        # 4. Sparkle twinkle
+        twinkle = (tick % 30) < 8
+        if twinkle:
+            AppKit.NSColor.whiteColor().set()
+            AppKit.NSBezierPath.bezierPathWithOvalInRect_(AppKit.NSMakeRect(cx + 1.2, cy + 1.2, 1.5, 1.5)).fill()

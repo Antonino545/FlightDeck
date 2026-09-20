@@ -132,6 +132,14 @@ class DatabaseService:
                     );
                 """)
 
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS bill_payments (
+                        event_id TEXT PRIMARY KEY,
+                        paid_at TEXT,
+                        notes TEXT
+                    );
+                """)
+
     def _migrate_legacy_json(self) -> None:
         """One-time migration importing existing data from legacy JSON files."""
         base_dir = os.path.dirname(self.db_path)
@@ -237,6 +245,32 @@ class DatabaseService:
         with self._write_lock, self._get_connection() as conn:
             cursor = conn.execute("DELETE FROM notified_stages WHERE notified_at < ?;", (cutoff,))
             return cursor.rowcount
+
+    # --------------------------------------------------------------------------
+    # Bill Payment Operations
+    # --------------------------------------------------------------------------
+
+    def record_bill_paid(self, event_id: str, paid_at: Optional[str] = None, notes: Optional[str] = None) -> None:
+        ts = paid_at or datetime.now(timezone.utc).isoformat()
+        with self._write_lock, self._get_connection() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO bill_payments (event_id, paid_at, notes) VALUES (?, ?, ?);",
+                (event_id, ts, notes)
+            )
+
+    def is_bill_paid(self, event_id: str) -> bool:
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT 1 FROM bill_payments WHERE event_id = ?;", (event_id,))
+        return cursor.fetchone() is not None
+
+    def remove_bill_paid(self, event_id: str) -> None:
+        with self._write_lock, self._get_connection() as conn:
+            conn.execute("DELETE FROM bill_payments WHERE event_id = ?;", (event_id,))
+
+    def get_all_paid_bills(self) -> Set[str]:
+        conn = self._get_connection()
+        cursor = conn.execute("SELECT event_id FROM bill_payments;")
+        return {row["event_id"] for row in cursor.fetchall()}
 
     # --------------------------------------------------------------------------
     # Banner History Operations

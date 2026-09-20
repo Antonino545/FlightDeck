@@ -261,7 +261,8 @@ class BannerHUDPainter:
         reminder_stage: Optional[int],
         button_rects: Dict[str, AppKit.NSRect],
         pressed_button: Optional[str],
-        hovered_button: Optional[str]
+        hovered_button: Optional[str],
+        is_bill: bool = False
     ):
         # 1. Main Action Button
         btn_act_rect = button_rects["action"]
@@ -310,8 +311,8 @@ class BannerHUDPainter:
             text_y = btn_act_rect.origin.y + (btn_act_rect.size.height - str_size.height) * 0.5
             ns_btn_str.drawAtPoint_withAttributes_(AppKit.NSMakePoint(text_x, text_y), btn_attrs)
 
-        # 2. "📍 I'm Here" Arrival Dismissal Button
-        if has_maps_url and button_rects["arrived"].size.width > 0:
+        # 2. "📍 I'm Here" / "✅ Mark Paid" Dismissal Button
+        if (has_maps_url or is_bill) and button_rects["arrived"].size.width > 0:
             is_pressed_arr = (pressed_button == "arrived")
             is_hovered_arr = (hovered_button == "arrived")
 
@@ -328,16 +329,18 @@ class BannerHUDPainter:
             arr_fill.set()
             btn_arr_path.fill()
 
-            arr_border = self.color_arrived.colorWithAlphaComponent_(0.50)
+            btn2_color = Theme.GREEN if is_bill else self.color_arrived
+            arr_border = btn2_color.colorWithAlphaComponent_(0.50)
             arr_border.set()
             btn_arr_path.setLineWidth_(1.0)
             btn_arr_path.stroke()
 
             arr_attrs = {
                 AppKit.NSFontAttributeName: self.font_btn_sec,
-                AppKit.NSForegroundColorAttributeName: self.color_arrived
+                AppKit.NSForegroundColorAttributeName: btn2_color
             }
-            ns_arr_str = AppKit.NSString.stringWithString_(t("banner_im_here", default="📍 I'm Here"))
+            btn2_text = t("banner_mark_paid", default="✅ Mark Paid") if is_bill else t("banner_im_here", default="📍 I'm Here")
+            ns_arr_str = AppKit.NSString.stringWithString_(btn2_text)
             arr_size = ns_arr_str.sizeWithAttributes_(arr_attrs)
             arr_tx = btn_arr_rect.origin.x + (btn_arr_rect.size.width - arr_size.width) * 0.5
             arr_ty = btn_arr_rect.origin.y + (btn_arr_rect.size.height - arr_size.height) * 0.5

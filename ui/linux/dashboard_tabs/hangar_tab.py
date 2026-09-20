@@ -28,12 +28,13 @@ def get_animals():
 
 CATEGORIES_DEF = [
     ("study", "cat_study_title", "cat_study_desc", "student", "owl", "#cba6f7"),
+    ("work", "cat_work_title", "cat_work_desc", "agent", "penguin", "#89b4fa"),
+    ("bill", "cat_bill_title", "cat_bill_desc", "banker", "duck", "#a6e3a1"),
     ("food", "cat_food_title", "cat_food_desc", "chef", "squirrel", "#fab387"),
     ("travel", "cat_travel_title", "cat_travel_desc", "captain", "duck", "#74c7ec"),
     ("sport", "cat_sport_title", "cat_sport_desc", "gym", "bunny", "#f38ba8"),
     ("in_person", "cat_in_person_title", "cat_in_person_desc", "racer", "fox", "#f9e2af"),
     ("health", "cat_health_title", "cat_health_desc", "zen", "panda", "#94e2d5"),
-    ("work", "cat_work_title", "cat_work_desc", "agent", "penguin", "#89b4fa"),
     ("concert", "cat_concert_title", "cat_concert_desc", "concert", "fox", "#f5c2e7"),
     ("general", "cat_general_title", "cat_general_desc", "aviator", "duck", "#a6e3a1")
 ]
@@ -55,8 +56,8 @@ def _hex_to_rgba(hex_code: str, alpha: float) -> str:
 
 
 CATEGORY_GROUPS = {
-    "all": ["study", "work", "food", "sport", "health", "travel", "in_person", "concert", "general"],
-    "productivity": ["study", "work"],
+    "all": ["study", "work", "bill", "food", "sport", "health", "travel", "in_person", "concert", "general"],
+    "productivity": ["study", "work", "bill"],
     "lifestyle": ["food", "sport", "health"],
     "commute": ["travel", "in_person", "concert"],
     "general": ["general"],
@@ -64,12 +65,13 @@ CATEGORY_GROUPS = {
 
 CATEGORY_BADGES = {
     "study": ("🎓", "ACADEMIC"),
+    "work": ("💼", "OFFICE"),
+    "bill": ("💳", "BILLS"),
     "food": ("🍕", "DINING"),
     "travel": ("✈️", "TRANSIT"),
     "sport": ("🏋️", "FITNESS"),
     "in_person": ("📍", "ON-SITE"),
     "health": ("🌸", "WELLNESS"),
-    "work": ("💼", "OFFICE"),
     "concert": ("🎸", "SHOWTIME"),
     "general": ("⭐", "STANDARD"),
 }
@@ -242,12 +244,13 @@ class QtHangarTab(QWidget):
         def _on_reset():
             defs = {
                 "study": {"animal": "owl", "outfit": "student"},
+                "work": {"animal": "penguin", "outfit": "agent"},
+                "bill": {"animal": "duck", "outfit": "banker"},
                 "food": {"animal": "squirrel", "outfit": "chef"},
                 "travel": {"animal": "duck", "outfit": "captain"},
                 "sport": {"animal": "bunny", "outfit": "gym"},
                 "in_person": {"animal": "fox", "outfit": "racer"},
                 "health": {"animal": "panda", "outfit": "zen"},
-                "work": {"animal": "penguin", "outfit": "agent"},
                 "concert": {"animal": "fox", "outfit": "concert"},
                 "general": {"animal": "duck", "outfit": "aviator"}
             }
@@ -615,12 +618,14 @@ class QtHangarTab(QWidget):
             an = val.get("animal", "duck") if isinstance(val, dict) else (val or "duck")
             out = "agent" if an == "platypus" else fixed_outfit
             titles = {
+                "study": "Neural Networks & AI University Lecture",
+                "work": "Executive Board Strategy & Sprint Review",
+                "bill": "Monthly Rent & Utility Bill Due",
                 "food": "Dinner with Friends at Pizzeria",
                 "travel": "Flight BA 257 to London Heathrow",
                 "sport": "CrossFit & Palestra Workout Session",
                 "in_person": "Architectural Studio Consultation",
                 "health": "Serenis Mindfulness & Yoga Session",
-                "work": "Executive Board Strategy & Sprint Review",
                 "concert": "Rock Arena Live World Tour Concert",
                 "secret": "Top Secret Agent Mission Briefing",
                 "general": "Weekly Team Sprint Planning",
@@ -632,7 +637,8 @@ class QtHangarTab(QWidget):
                 "pilot_type": f"{an}_{out}",
                 "animal": an,
                 "outfit": out,
-                "action_btn_text": "🚀 TEST FLIGHT",
+                "category": cat_key,
+                "action_btn_text": "💳 PAY BILL" if cat_key == "bill" else "🚀 TEST FLIGHT",
                 "action_url": "https://meet.google.com/test-flight",
                 "start_time": now + timedelta(minutes=10),
                 "end_time": now + timedelta(minutes=70),

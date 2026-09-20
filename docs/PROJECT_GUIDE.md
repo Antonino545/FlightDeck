@@ -83,7 +83,12 @@ FlightDeck/
 │   │   ├── reminder_policy.py     # Strategy-based ReminderPolicy & ReminderPolicyRegistry
 │   │   ├── capabilities.py        # EventCapabilities presentation flags
 │   │   ├── context_engine.py      # Context Engine & "Why?" Transparency Engine (TransitionGuidance, ActionType)
-│   │   └── classifier.py          # Smart keyword matching, category classification & video URL extraction
+│   │   ├── classifier.py          # EventClassifier orchestrator & compiled category regex matching
+│   │   ├── temporal_parser.py     # Temporal anchor stripping, status markers & prefix parsing
+│   │   ├── category_theme.py      # Data-driven CategoryTheme & _CATEGORY_THEMES mapping table
+│   │   ├── classification_rules.py# ClassificationRule pipeline & ClassificationContext
+│   │   ├── mascot_customizer.py   # MascotCustomizer, outfit layers & legacy pilot mappings
+│   │   └── keywords_data.py       # Centralized English & Italian bilingual keyword dictionaries
 │   ├── providers/
 │   │   ├── base.py                # BaseCalendarProvider abstract class
 │   │   ├── eventkit_provider.py   # Native Apple EventKit bridge (macOS)
@@ -124,7 +129,7 @@ FlightDeck/
 │       └── banner/                # PyQt6 animated banner overlay
 │           ├── qt_banner.py
 │           └── renderers/         # Modular PyQt6 pilot renderers
-└── tests/                         # Full automated unit test suite (195+ tests)
+└── tests/                         # Full automated unit test suite (283+ tests)
 ```
 
 ---

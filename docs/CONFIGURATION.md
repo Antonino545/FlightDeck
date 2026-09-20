@@ -23,6 +23,8 @@ FlightDeck stores all user preferences, timing thresholds, routing configuration
 | `sound_enabled` | `bool` | `true` | Whether to play a system sound when the banner appears. |
 | `sound_name` | `string` | `"Glass"` | System sound name to play (`"Glass"`, `"Hero"`, `"Ping"`, `"Pop"`, `"Submarine"`). |
 | `mute_during_lessons` | `bool` | `true` | Automatically mute banner chime when attending a university lecture/lesson or when the event is a class. |
+| `enable_bill_reminders` | `bool` | `true` | Periodically send recurring reminders for bills and rent until marked paid or actioned. |
+| `bill_reminder_interval_minutes` | `int` | `120` | Interval in minutes between recurring bill reminders (e.g. 30, 60, 120, 240). |
 | `ignored_calendars` | `list[str]` | `[...]` | Exact names of calendars to exclude from scanning (e.g., `"Birthdays"`, `"Holidays"`). |
 | `calendar_urls` | `list[str]` | `[]` | URLs for remote ICS / CalDAV feeds, used on Linux and Windows. |
 | `home_address` | `string` | `""` | Origin street address for ETA calculations (e.g., `"Via Pietro Cossa 11"`). |
@@ -32,9 +34,9 @@ FlightDeck stores all user preferences, timing thresholds, routing configuration
 | `enable_eta_service` | `bool` | `true` | Whether to calculate departure times and routing links via Apple Maps / Google Maps. |
 | `eta_buffer_minutes` | `int` | `10` | Buffer minutes added before departure to account for reaching transit stop/parking. |
 | `auto_walking_threshold_km` | `float` | `1.2` | Distance threshold (in km) to automatically suggest/switch to walking route ETA instead of public transit/driving. Set to `0` to disable. |
-| `calendar_category_map` | `dict[str, str]` | `{}` | Direct calendar-to-category binding (e.g. `{"Studio": "study", "Work": "work", "Concerti": "concert"}`). Overrides keyword guessing for events originating from that calendar. |
-| `custom_keywords` | `dict` | `{...}` | Custom keyword mappings for event categories (`study`, `class`, `exam`, `food`, `travel`, `sport`, `in_person`, `health`, `work`, `concert`, `general`). |
-| `mascot_customization` | `dict` | `{...}` | Mascot animal, outfit, and accessory assignments per event category (`study`, `food`, `travel`, `sport`, `in_person`, `health`, `work`, `concert`, `general`). |
+| `calendar_category_map` | `dict[str, str]` | `{}` | Direct calendar-to-category binding (e.g. `{"Studio": "study", "Work": "work", "Bollette": "bill", "Concerti": "concert"}`). Overrides keyword guessing for events originating from that calendar. |
+| `custom_keywords` | `dict` | `{...}` | Custom keyword mappings for event categories (`study`, `class`, `exam`, `bill`, `food`, `travel`, `sport`, `in_person`, `health`, `work`, `concert`, `general`). |
+| `mascot_customization` | `dict` | `{...}` | Mascot animal, outfit, and accessory assignments per event category (`study`, `work`, `bill`, `food`, `travel`, `sport`, `in_person`, `health`, `concert`, `general`). |
 
 ---
 
@@ -72,6 +74,9 @@ Category keywords can be managed visually directly within the application's **Ha
     ],
     "exam": [
       "esame", "esami", "appello", "parziale", "esonero", "orale", "scritto", "test", "midterm", "final exam"
+    ],
+    "bill": [
+      "affitto", "rent", "bolletta", "bollette", "fattura", "fatture", "invoice", "invoices", "utenze", "utenza", "luce", "gas", "tari", "imu", "f24", "pagamento", "pagare", "scadenza rata", "rata", "rate", "condominio", "spese condominiali", "abbonamento", "revisore", "commercialista"
     ],
     "food": [
       "cena", "pranzo", "dinner", "lunch", "ristorante", "pizza", "pizzeria", "sushi", "aperitivo", "apericena", "osteria", "trattoria", "cibo", "food", "mangiare", "pub", "burger"

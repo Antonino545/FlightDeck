@@ -207,8 +207,11 @@ class ContextEngine:
 
             if isinstance(st, datetime):
                 if st.astimezone().date() == now_local.date():
-                    if et is None or et > now:
-                        today_events.append((e, st, et))
+                    is_all_day = bool(e.get("is_all_day", False) if isinstance(e, dict) else getattr(e, "is_all_day", False))
+                    cat = str((e.get("category") or e.get("event_type") or "") if isinstance(e, dict) else (getattr(e, "category", None) or getattr(e, "event_type", None) or ""))
+                    if not is_all_day and cat != "bill":
+                        if et is None or et > now:
+                            today_events.append((e, st, et))
 
         # Sort by start time
         today_events.sort(key=lambda item: item[1])

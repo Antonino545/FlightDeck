@@ -86,6 +86,7 @@ class CalendarsCardController(AppKit.NSObject):
             ("", t("cal_cat_auto")),
             ("study", t("cal_cat_study")),
             ("work", t("cal_cat_work")),
+            ("bill", t("cal_cat_bill")),
             ("concert", t("cal_cat_concert")),
             ("food", t("cal_cat_food")),
             ("travel", t("cal_cat_travel")),

@@ -16,7 +16,8 @@ class BannerLayout:
         banner_y: float,
         has_maps_url: bool,
         has_real_url: bool,
-        reminder_stage: Optional[int]
+        reminder_stage: Optional[int],
+        is_bill: bool = False
     ) -> Dict[str, AppKit.NSRect]:
         """Returns accurate bounding rects for all interactive elements."""
         btn_close_rect = AppKit.NSMakeRect(banner_x + self.banner_w - 36, banner_y + self.banner_h - 34, 24, 24)
@@ -27,7 +28,13 @@ class BannerLayout:
         btn_y = banner_y + 14.0
         is_stage_zero = (reminder_stage == 0)
 
-        if is_stage_zero:
+        if is_bill:
+            # 2 Buttons for Bill: [Action / Pay (260px)] [✅ Mark Paid (227px)]
+            btn_action_rect = AppKit.NSMakeRect(banner_x + 18, btn_y, 260, btn_h)
+            btn_arrived_rect = AppKit.NSMakeRect(banner_x + 290, btn_y, 227, btn_h)
+            btn_snooze1_rect = AppKit.NSMakeRect(0, 0, 0, 0)
+            btn_snooze2_rect = AppKit.NSMakeRect(0, 0, 0, 0)
+        elif is_stage_zero:
             if has_maps_url:
                 if has_real_url:
                     # 2 Buttons: [Action / Directions (260px)] [📍 I'm Here (227px)] (Got it is redundant and removed)

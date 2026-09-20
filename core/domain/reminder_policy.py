@@ -141,6 +141,19 @@ class GeneralReminderPolicy:
         return has_active_call and stage > 10
 
 
+class BillReminderPolicy:
+    """Reminder policy for bills, rent, utilities, and payments."""
+
+    def get_stages(self, event: Any, config: Any) -> List[int]:
+        return [0]
+
+    def should_suppress(self, event: Any, state: EventState, diff_min: float) -> bool:
+        return state in [EventState.COMPLETED, EventState.CANCELLED, EventState.ARRIVED]
+
+    def is_quiet(self, event: Any, has_active_call: bool, stage: int) -> bool:
+        return has_active_call
+
+
 class ReminderPolicyRegistry:
     """Central registry resolving the appropriate reminder policy for an event."""
 
@@ -149,6 +162,7 @@ class ReminderPolicyRegistry:
     _video_policy = VideoMeetingReminderPolicy()
     _transit_policy = TransitReminderPolicy()
     _general_policy = GeneralReminderPolicy()
+    _bill_policy = BillReminderPolicy()
 
     @classmethod
     def get_policy(cls, event: Any) -> ReminderPolicy:
@@ -158,7 +172,9 @@ class ReminderPolicyRegistry:
 
         cat = (getattr(event, "category", None) or getattr(event, "event_type", None) or "").lower()
 
-        if cat == "exam":
+        if cat == "bill":
+            return cls._bill_policy
+        elif cat == "exam":
             return cls._exam_policy
         elif cat in ["class", "study"]:
             return cls._lecture_policy

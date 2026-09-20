@@ -227,5 +227,86 @@ class TestReminderEngine(unittest.TestCase):
         res = self.engine.check_and_notify()
         self.assertIsInstance(res, list)
 
+    def test_bill_recurring_reminders_all_day(self):
+        now = datetime(2026, 8, 22, 9, 0, 0, tzinfo=timezone.utc)
+        bill = Meeting(
+            id="bill_rent_101",
+            title="Affitto Mensile",
+            start_time=now,
+            is_all_day=True,
+            category="bill",
+            event_type="bill"
+        )
+        self.engine.config.set("enable_bill_reminders", True)
+        self.engine.config.set("bill_reminder_interval_minutes", 120)
+
+        # 1. First evaluation: should trigger reminder stage 0
+        res1 = self.engine.evaluate_meetings([bill], current_time=now)
+        self.assertEqual(len(res1), 1)
+        self.assertEqual(res1[0][1], 0)
+
+        # 2. Evaluation 30m later (less than 120m): should be suppressed
+        t_plus_30m = now + timedelta(minutes=30)
+        res2 = self.engine.evaluate_meetings([bill], current_time=t_plus_30m)
+        self.assertEqual(len(res2), 0)
+
+        # 3. Evaluation 125m later (interval elapsed): should trigger next slot
+        t_plus_125m = now + timedelta(minutes=125)
+        res3 = self.engine.evaluate_meetings([bill], current_time=t_plus_125m)
+        self.assertEqual(len(res3), 1)
+
+    def test_bill_mark_paid_suppresses_reminders(self):
+        now = datetime(2026, 8, 22, 9, 0, 0, tzinfo=timezone.utc)
+        bill = Meeting(
+            id="bill_electric_202",
+            title="Bolletta Luce",
+            start_time=now,
+            is_all_day=True,
+            category="bill"
+        )
+        self.engine.config.set("enable_bill_reminders", True)
+        self.engine.config.set("bill_reminder_interval_minutes", 60)
+
+        # First evaluation triggers
+        res1 = self.engine.evaluate_meetings([bill], current_time=now)
+        self.assertEqual(len(res1), 1)
+
+        # Mark paid
+        self.engine.mark_bill_paid("bill_electric_202")
+        self.assertTrue(self.engine.is_bill_paid("bill_electric_202"))
+
+        # Evaluation after interval has elapsed should still be suppressed because it is paid
+        t_plus_90m = now + timedelta(minutes=90)
+        res2 = self.engine.evaluate_meetings([bill], current_time=t_plus_90m)
+        self.assertEqual(len(res2), 0)
+
+    def test_bill_reminders_disabled_setting(self):
+        now = datetime(2026, 8, 22, 9, 0, 0, tzinfo=timezone.utc)
+        bill = Meeting(
+            id="bill_gas_303",
+            title="Bolletta Gas",
+            start_time=now,
+            is_all_day=True,
+            category="bill"
+        )
+        self.engine.config.set("enable_bill_reminders", False)
+        res = self.engine.evaluate_meetings([bill], current_time=now)
+        self.assertEqual(len(res), 0)
+
+    def test_bill_event_bus_mark_paid(self):
+        now = datetime(2026, 8, 22, 9, 0, 0, tzinfo=timezone.utc)
+        bill = Meeting(
+            id="bill_tax_404",
+            title="Tassa Rifiuti",
+            start_time=now,
+            is_all_day=True,
+            category="bill"
+        )
+        self.engine.config.set("enable_bill_reminders", True)
+        self.bus.publish("MARK_PAID", meeting_id="bill_tax_404")
+        self.assertTrue(self.engine.is_bill_paid("bill_tax_404"))
+        res = self.engine.evaluate_meetings([bill], current_time=now)
+        self.assertEqual(len(res), 0)
+
 if __name__ == "__main__":
     unittest.main()

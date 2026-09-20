@@ -97,6 +97,13 @@ def resolve_event_state(
     if arrival_reason.startswith("call:"):
         return EventState.ACTIVE
 
+    is_all_day = bool(_get_val(event, "is_all_day", False))
+    cat = str(_get_val(event, "category", "") or _get_val(event, "event_type", "") or "")
+
+    # All-day events and bills are reminders/tasks, never active underway sessions
+    if is_all_day or cat == "bill":
+        return EventState.UPCOMING
+
     # 4. Check if event is underway (start <= now < end)
     if end_dt and start_dt <= now < end_dt:
         return EventState.ACTIVE
