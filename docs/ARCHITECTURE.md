@@ -126,7 +126,7 @@ Cross-platform presentation layer structured by operating system:
   - **`mascot_catalog.py`**: Shared Hangar catalog for mascot labels, accessory IDs, and backward-compatible accessory normalization.
 - **`ui/macos/`**: Native macOS UI using PyObjC:
   - **`theme.py`**: Native `NSColor` and `CGColor` bridges derived directly from `ui.common.theme.CatppuccinMocha`.
-  - **`menu_bar_app.py`**: AppKit `NSStatusItem` menu bar controller.
+  - **`menu_bar_app.py`**: Dockless AppKit `NSStatusItem` menu bar controller; the dashboard remains available from the status item.
   - **`dashboard_window.py`**: Native `NSWindow` Flight Deck HUD with custom segmented capsule pill switcher.
   - **`components/`**: Reusable AppKit components (`flipped_view.py`, `keyword_chip_view.py` with custom/preset pill dual-tier styling).
   - **`dashboard_tabs/`**: Dedicated native tab views:

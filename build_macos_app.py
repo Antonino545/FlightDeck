@@ -183,7 +183,7 @@ def build_bundle():
     <key>LSMinimumSystemVersion</key>
     <string>11.0</string>
     <key>LSUIElement</key>
-    <false/>
+    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSCalendarsUsageDescription</key>
