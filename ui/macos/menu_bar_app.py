@@ -119,8 +119,9 @@ class FlightDeckMenuBar(AppKit.NSObject):
         self.app = AppKit.NSApplication.sharedApplication()
 
         # Force macOS to (re-)register this process as a GUI app with menu bar.
+        # Keep FlightDeck out of the Dock while retaining its menu bar status item
+        # and dashboard windows.
         self.app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyAccessory)
-        self.app.setActivationPolicy_(AppKit.NSApplicationActivationPolicyRegular)
 
         self.delegate = FlightDeckAppDelegate.alloc().init()
         self.app.setDelegate_(self.delegate)
